@@ -26,6 +26,7 @@ import {
 } from "@/lib/worldcup";
 import SiteNav from "@/components/SiteNav";
 import KnockoutBracket from "@/components/KnockoutBracket";
+import MatchAnalytics from "@/components/MatchAnalytics";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupRow, ResolvedGroup } from "@/lib/resolver";
 
@@ -827,7 +828,7 @@ export default function WorldCupDashboard() {
           live={hasLiveBracket}
         />
         <HostCitiesSection />
-        <ResultsPlaceholder />
+        <MatchAnalytics />
 
         <footer className="border-t border-[#071e38] py-8 px-4 text-center mt-10">
           <p className="text-gray-600 text-sm">
