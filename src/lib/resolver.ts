@@ -97,15 +97,31 @@ export type GroupRow = {
   points: number;
 };
 
+export type GroupMatch = {
+  id: number;
+  fixtureId: number | null;
+  utcDate: string;
+  status: string;
+  homeCode: string;
+  homeFlag: string;
+  homeName: string;
+  awayCode: string;
+  awayFlag: string;
+  awayName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
 export type ResolvedGroup = Group & {
-  rows: GroupRow[] | null; // null → no live data yet
+  rows: GroupRow[] | null;
+  matches: GroupMatch[] | null;
 };
 
 // Compute group standings from finished group-stage matches.
 // (The /standings endpoint on the free tier returns a single 48-team aggregate
 // without group breakdown, so we derive standings ourselves.)
 export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
-  if (!matches) return GROUPS.map((g) => ({ ...g, rows: null }));
+  if (!matches) return GROUPS.map((g) => ({ ...g, rows: null, matches: null }));
 
   return GROUPS.map((g) => {
     const groupKey = `GROUP_${g.letter}`;
@@ -113,7 +129,29 @@ export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
       (m) => m.stage === "GROUP_STAGE" && m.group === groupKey,
     );
 
-    if (groupMatches.length === 0) return { ...g, rows: null };
+    if (groupMatches.length === 0) return { ...g, rows: null, matches: null };
+
+    // Build simplified match list sorted by date.
+    const matchItems: GroupMatch[] = groupMatches
+      .map((m) => {
+        const home = findLocalTeam(m.homeTeam);
+        const away = findLocalTeam(m.awayTeam);
+        return {
+          id: m.id,
+          fixtureId: null,
+          utcDate: m.utcDate,
+          status: m.status,
+          homeCode: home?.code ?? m.homeTeam?.tla ?? "TBD",
+          homeFlag: home?.flag ?? "🏳️",
+          homeName: home?.name ?? m.homeTeam?.name ?? "TBD",
+          awayCode: away?.code ?? m.awayTeam?.tla ?? "TBD",
+          awayFlag: away?.flag ?? "🏳️",
+          awayName: away?.name ?? m.awayTeam?.name ?? "TBD",
+          homeScore: m.score.fullTime.home,
+          awayScore: m.score.fullTime.away,
+        };
+      })
+      .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
 
     // Initialize a row per local team in this group
     const stats = new Map<string, GroupRow>();
@@ -153,7 +191,7 @@ export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
       anyPlayed = true;
     });
 
-    if (!anyPlayed) return { ...g, rows: null };
+    if (!anyPlayed) return { ...g, rows: null, matches: matchItems };
 
     const rows = Array.from(stats.values())
       .map((r) => ({ ...r, gd: r.gf - r.ga }))
@@ -165,7 +203,7 @@ export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
       })
       .map((r, i) => ({ ...r, position: i + 1 }));
 
-    return { ...g, rows };
+    return { ...g, rows, matches: matchItems };
   });
 }
 

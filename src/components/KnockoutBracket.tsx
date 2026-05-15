@@ -37,9 +37,11 @@ function SlotRow({ slot }: { slot: Slot }) {
 function MatchCard({
   match,
   highlight,
+  onMatchClick,
 }: {
   match: Match;
   highlight?: "final" | "third";
+  onMatchClick?: (fixtureId: number | null, label: string, date: string) => void;
 }) {
   const border =
     highlight === "final"
@@ -48,10 +50,11 @@ function MatchCard({
       ? "border-rose-400/30"
       : "border-[#0f2d4a] hover:border-blue-500/30";
 
-  return (
-    <div
-      className={`bg-[#071e38]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors`}
-    >
+  const label = `${match.slot1.team?.name ?? match.slot1.label} vs ${match.slot2.team?.name ?? match.slot2.label}`;
+  const date = match.date ?? new Date(2026, 5, 11).toISOString();
+
+  const inner = (
+    <>
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#0f2d4a] bg-[#020d1c]/40">
         <span className="text-[10px] font-bold tracking-widest text-gray-500">
           {match.id}
@@ -67,6 +70,26 @@ function MatchCard({
       <SlotRow slot={match.slot1} />
       <div className="h-px bg-[#0f2d4a] mx-3" />
       <SlotRow slot={match.slot2} />
+    </>
+  );
+
+  if (onMatchClick) {
+    return (
+      <button
+        type="button"
+        onClick={() => onMatchClick(match.fixtureId ?? null, label, date)}
+        className={`w-full text-left bg-[#071e38]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors cursor-pointer group`}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`bg-[#071e38]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors`}
+    >
+      {inner}
     </div>
   );
 }
@@ -82,12 +105,14 @@ function RoundColumn({
   matches,
   index,
   totalRounds,
+  onMatchClick,
 }: {
   name: string;
   short: string;
   matches: Match[];
   index: number;
   totalRounds: number;
+  onMatchClick?: (fixtureId: number | null, label: string, date: string) => void;
 }) {
   const isFinal = index === totalRounds - 1;
 
@@ -100,9 +125,6 @@ function RoundColumn({
         <p className="text-gray-500 text-[11px]">{name}</p>
       </div>
 
-      {/* The grid spreads matches with equal vertical gaps. Earlier rounds
-          have many matches packed tight; later rounds have a few matches
-          centred by the larger gap. */}
       <div
         className="flex-1 grid"
         style={{
@@ -120,7 +142,11 @@ function RoundColumn({
             className="flex items-center"
           >
             <div className="w-full">
-              <MatchCard match={m} highlight={isFinal ? "final" : undefined} />
+              <MatchCard
+                match={m}
+                highlight={isFinal ? "final" : undefined}
+                onMatchClick={onMatchClick}
+              />
             </div>
           </motion.div>
         ))}
@@ -137,10 +163,12 @@ export default function KnockoutBracket({
   rounds = BRACKET,
   thirdPlace = THIRD_PLACE_MATCH,
   live = false,
+  onMatchClick,
 }: {
   rounds?: Round[];
   thirdPlace?: Match;
   live?: boolean;
+  onMatchClick?: (fixtureId: number | null, label: string, date: string) => void;
 } = {}) {
   return (
     <section id="bracket" className="px-4 py-10 scroll-mt-12">
@@ -199,6 +227,7 @@ export default function KnockoutBracket({
                     matches={round.matches}
                     index={i}
                     totalRounds={rounds.length}
+                    onMatchClick={onMatchClick}
                   />
                 ))}
               </div>

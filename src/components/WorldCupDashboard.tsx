@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Trophy,
@@ -13,6 +14,9 @@ import {
   TrendingUp,
   Hash,
   Activity,
+  ChevronRight,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
 import {
@@ -28,7 +32,7 @@ import SiteNav from "@/components/SiteNav";
 import KnockoutBracket from "@/components/KnockoutBracket";
 import MatchAnalytics from "@/components/MatchAnalytics";
 import type { Match, Round } from "@/lib/bracket";
-import type { GroupRow, ResolvedGroup } from "@/lib/resolver";
+import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Countdown
@@ -381,15 +385,82 @@ function StandingsTable({ rows }: { rows: GroupRow[] }) {
   );
 }
 
+function GroupMatchRow({
+  match,
+  onMatchClick,
+}: {
+  match: GroupMatch;
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+}) {
+  const isFinished = match.status === "FINISHED" || match.status === "AWARDED";
+  const isLive = match.status === "IN_PLAY" || match.status === "PAUSED";
+  const hasScore = isFinished || isLive;
+  const kickoff = new Date(match.utcDate);
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        onMatchClick(
+          match.fixtureId,
+          `${match.homeName} vs ${match.awayName}`,
+          match.utcDate,
+        )
+      }
+      className="w-full text-left group flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[#0f2d4a]/60 transition-colors cursor-pointer"
+    >
+      <div className="flex items-center gap-1 flex-1 min-w-0">
+        <span className="text-base leading-none">{match.homeFlag}</span>
+        <span className="text-white text-[12px] font-semibold truncate">
+          {match.homeCode}
+        </span>
+      </div>
+
+      <div className="text-center flex-shrink-0 w-20">
+        {hasScore ? (
+          <span className="text-white font-bold text-sm tabular-nums">
+            {match.homeScore ?? 0} – {match.awayScore ?? 0}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-[11px]">
+            {kickoff.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        )}
+        {isLive && (
+          <span className="block text-[9px] font-bold text-rose-400 tracking-wider">LIVE</span>
+        )}
+        {isFinished && (
+          <span className="block text-[9px] font-bold text-emerald-400/70 tracking-wider">FT</span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
+        <span className="text-white text-[12px] font-semibold truncate">
+          {match.awayCode}
+        </span>
+        <span className="text-base leading-none">{match.awayFlag}</span>
+      </div>
+
+      <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-blue-400 flex-shrink-0 transition-colors" />
+    </button>
+  );
+}
+
 function GroupCard({
   group,
   i,
   rows,
+  matches,
+  onMatchClick,
 }: {
   group: Group;
   i: number;
   rows?: GroupRow[] | null;
+  matches?: GroupMatch[] | null;
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
 }) {
+  const [matchesOpen, setMatchesOpen] = useState(false);
+
   const avgRank = Math.round(
     group.teams.reduce((a, t) => a + t.fifaRank, 0) / group.teams.length,
   );
@@ -451,11 +522,36 @@ function GroupCard({
           </div>
         )}
 
-        <div className="mt-3 pt-3 border-t border-[#0f2d4a] flex items-center justify-between text-[11px]">
-          <span className="text-gray-500">
-            Matchday 1 · Jun {12 + (i % 5)}, 2026
-          </span>
-          <span className="text-blue-400 font-semibold">6 matches</span>
+        {/* See All Matches toggle */}
+        <div className="mt-3 pt-3 border-t border-[#0f2d4a]">
+          <button
+            type="button"
+            onClick={() => setMatchesOpen((v) => !v)}
+            className="w-full flex items-center justify-between text-[12px] font-semibold text-blue-400 hover:text-blue-300 transition-colors group"
+          >
+            <span>See All Matches</span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${matchesOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {matchesOpen && (
+            <div className="mt-2 space-y-0.5">
+              {matches && matches.length > 0 ? (
+                matches.map((m) => (
+                  <GroupMatchRow
+                    key={m.id}
+                    match={m}
+                    onMatchClick={onMatchClick}
+                  />
+                ))
+              ) : (
+                <p className="text-gray-500 text-[11px] py-3 text-center">
+                  Fixtures will appear here when the draw is complete.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -464,16 +560,24 @@ function GroupCard({
 
 function GroupsSection({
   resolved,
+  onMatchClick,
 }: {
   resolved?: ResolvedGroup[] | null;
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [confFilter, setConfFilter] = useState<Confederation | "ALL">("ALL");
 
-  // Map letter → live rows, if any
+  // Map letter → live rows / matches, if any
   const rowsByLetter = useMemo(() => {
     const m = new Map<string, GroupRow[] | null>();
     (resolved ?? []).forEach((g) => m.set(g.letter, g.rows));
+    return m;
+  }, [resolved]);
+
+  const matchesByLetter = useMemo(() => {
+    const m = new Map<string, GroupMatch[] | null>();
+    (resolved ?? []).forEach((g) => m.set(g.letter, g.matches));
     return m;
   }, [resolved]);
 
@@ -578,6 +682,8 @@ function GroupsSection({
                 group={g}
                 i={i}
                 rows={rowsByLetter.get(g.letter)}
+                matches={matchesByLetter.get(g.letter)}
+                onMatchClick={onMatchClick}
               />
             ))}
           </div>
@@ -780,6 +886,217 @@ function ResultsPlaceholder() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Match center — list of matches with clickable rows
+// ─────────────────────────────────────────────────────────────────────────────
+
+type MatchListItem = {
+  fixtureId: number;
+  competition: string;
+  competitionNote?: string;
+  date: string; // ISO
+  venue: string;
+  status: "FT" | "LIVE" | "UPCOMING";
+  home: { name: string; logo: string; score: number | null };
+  away: { name: string; logo: string; score: number | null };
+};
+
+const SAMPLE_MATCHES: MatchListItem[] = [
+  {
+    fixtureId: 1379275,
+    competition: "Premier League",
+    competitionNote: "Sample match — analytics preview",
+    date: "2026-05-13T19:00:00Z",
+    venue: "Etihad Stadium",
+    status: "FT",
+    home: {
+      name: "Manchester City",
+      logo: "https://media.api-sports.io/football/teams/50.png",
+      score: 3,
+    },
+    away: {
+      name: "Crystal Palace",
+      logo: "https://media.api-sports.io/football/teams/52.png",
+      score: 0,
+    },
+  },
+];
+
+function StatusBadge({ status }: { status: MatchListItem["status"] }) {
+  if (status === "LIVE") {
+    return (
+      <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold px-2.5 py-1 rounded-full">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+        LIVE
+      </span>
+    );
+  }
+  if (status === "FT") {
+    return (
+      <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold px-2.5 py-1 rounded-full">
+        FULL TIME
+      </span>
+    );
+  }
+  return (
+    <span className="bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full">
+      UPCOMING
+    </span>
+  );
+}
+
+function MatchRow({
+  match,
+  onClick,
+  active,
+}: {
+  match: MatchListItem;
+  onClick: () => void;
+  active: boolean;
+}) {
+  const hasScore = match.home.score != null && match.away.score != null;
+  const kickoff = new Date(match.date);
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className={`w-full text-left bg-[#071e38]/80 hover:bg-[#0a2647]/90 border rounded-2xl p-4 sm:p-5 transition-all group ${
+        active
+          ? "border-blue-500/60 ring-1 ring-blue-500/30"
+          : "border-[#1a4a7a] hover:border-blue-500/40"
+      }`}
+    >
+      {/* Top meta row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 text-xs">
+        <div className="flex items-center gap-2 text-gray-400">
+          <span className="font-semibold uppercase tracking-wider">
+            {match.competition}
+          </span>
+          {match.competitionNote && (
+            <>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-500">{match.competitionNote}</span>
+            </>
+          )}
+        </div>
+        <StatusBadge status={match.status} />
+      </div>
+
+      {/* Teams + score */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <Image
+            src={match.home.logo}
+            alt={match.home.name}
+            width={40}
+            height={40}
+            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+            unoptimized
+          />
+          <span className="text-white font-semibold truncate text-sm sm:text-base">
+            {match.home.name}
+          </span>
+        </div>
+
+        <div className="text-center">
+          {hasScore ? (
+            <div className="flex items-center gap-2 sm:gap-3 text-2xl sm:text-3xl font-bold text-white">
+              <span>{match.home.score}</span>
+              <span className="text-gray-600 text-base">—</span>
+              <span>{match.away.score}</span>
+            </div>
+          ) : (
+            <div className="text-gray-300 text-sm font-semibold">
+              {kickoff.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 min-w-0 justify-end">
+          <span className="text-white font-semibold truncate text-sm sm:text-base text-right">
+            {match.away.name}
+          </span>
+          <Image
+            src={match.away.logo}
+            alt={match.away.name}
+            width={40}
+            height={40}
+            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0"
+            unoptimized
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#0f2d4a] text-xs text-gray-400">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5" />
+            {match.venue}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5" />
+            {kickoff.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+        </div>
+        <span className="flex items-center gap-1 text-blue-300 font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
+          View analytics
+          <ChevronRight className="w-3.5 h-3.5" />
+        </span>
+      </div>
+    </motion.button>
+  );
+}
+
+function MatchCenter({
+  selectedId,
+  onSelect,
+}: {
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  return (
+    <section id="matches" className="px-4 py-10 scroll-mt-12">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy className="w-5 h-5 text-blue-400" />
+          <h2 className="text-white font-bold text-2xl">Match Center</h2>
+        </div>
+        <p className="text-gray-500 text-sm mb-6">
+          Click any match to open full analytics — stats, timeline, formations,
+          and player ratings.
+        </p>
+
+        <div className="space-y-3">
+          {SAMPLE_MATCHES.map((m) => (
+            <MatchRow
+              key={m.fixtureId}
+              match={m}
+              active={selectedId === m.fixtureId}
+              onClick={() => onSelect(m.fixtureId)}
+            />
+          ))}
+        </div>
+
+        <p className="text-gray-600 text-xs mt-6 text-center">
+          World Cup fixtures will appear here as the tournament approaches.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Page shell
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -791,8 +1108,82 @@ type WorldCupPayload = {
   thirdPlace: Match;
 };
 
+// Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.
+function UpcomingMatchModal({
+  label,
+  date,
+  onClose,
+}: {
+  label: string;
+  date: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const kickoff = new Date(date);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.15 }}
+        className="relative bg-[#071e38] border border-[#1a4a7a] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded-full bg-[#0f2d4a] border border-[#1a4a7a] text-gray-400 hover:text-white transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+        <Calendar className="w-10 h-10 text-blue-400 mx-auto mb-4" />
+        <p className="text-white font-bold text-lg mb-1">{label}</p>
+        <p className="text-gray-400 text-sm mb-4">
+          {kickoff.toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
+          {" · "}
+          {kickoff.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+        </p>
+        <p className="text-gray-500 text-xs">
+          Match analytics will be available once this fixture kicks off.
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+type SelectedMatch =
+  | { type: "analytics"; fixtureId: number }
+  | { type: "upcoming"; label: string; date: string }
+  | null;
+
 export default function WorldCupDashboard() {
   const [data, setData] = useState<WorldCupPayload | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -809,11 +1200,26 @@ export default function WorldCupDashboard() {
     };
   }, []);
 
-  // We treat "live" as true only if the API surfaced any standings or
-  // populated bracket slots — not merely the presence of an API key.
   const hasLiveBracket = !!data?.bracket?.some((r) =>
     r.matches.some((m) => m.slot1.team || m.slot2.team),
   );
+
+  const handleMatchClick = (fixtureId: number | null, label: string, date: string) => {
+    if (fixtureId != null) {
+      setSelectedMatch({ type: "analytics", fixtureId });
+    } else {
+      setSelectedMatch({ type: "upcoming", label, date });
+    }
+  };
+
+  const handleClose = () => setSelectedMatch(null);
+
+  // Legacy: MatchCenter still passes a plain number
+  const handleSelectMatch = (id: number) =>
+    setSelectedMatch({ type: "analytics", fixtureId: id });
+
+  const analyticsFixtureId =
+    selectedMatch?.type === "analytics" ? selectedMatch.fixtureId : null;
 
   return (
     <main className="bg-[#020d1c] min-h-screen bg-aurora">
@@ -821,14 +1227,29 @@ export default function WorldCupDashboard() {
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
         <Hero />
         <StatStrip />
-        <GroupsSection resolved={data?.groups} />
+        <GroupsSection resolved={data?.groups} onMatchClick={handleMatchClick} />
         <KnockoutBracket
           rounds={data?.bracket}
           thirdPlace={data?.thirdPlace}
           live={hasLiveBracket}
+          onMatchClick={handleMatchClick}
         />
         <HostCitiesSection />
-        <MatchAnalytics />
+        <MatchCenter
+          selectedId={analyticsFixtureId}
+          onSelect={handleSelectMatch}
+        />
+        <MatchAnalytics
+          fixtureId={analyticsFixtureId}
+          onClose={handleClose}
+        />
+        {selectedMatch?.type === "upcoming" && (
+          <UpcomingMatchModal
+            label={selectedMatch.label}
+            date={selectedMatch.date}
+            onClose={handleClose}
+          />
+        )}
 
         <footer className="border-t border-[#071e38] py-8 px-4 text-center mt-10">
           <p className="text-gray-600 text-sm">

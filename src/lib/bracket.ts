@@ -20,6 +20,7 @@ export type Match = {
   id: string;          // e.g. "M73"
   date?: string;       // ISO — optional, filled when scheduled
   venue?: string;
+  fixtureId?: number;  // api-football fixture id — populated once known
   slot1: Slot;
   slot2: Slot;
 };
