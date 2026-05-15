@@ -916,7 +916,7 @@ export default function MatchAnalytics({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="sticky top-3 float-right mr-3 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[#071e38]/90 border border-[#1a4a7a] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+            className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[#071e38]/90 border border-[#1a4a7a] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
