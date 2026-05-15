@@ -153,105 +153,6 @@ function ComparisonRow({
   );
 }
 
-function ratingColor(rating: number | null) {
-  if (rating == null) return "text-gray-500";
-  if (rating >= 8) return "text-green-400";
-  if (rating >= 7) return "text-blue-300";
-  if (rating >= 6) return "text-yellow-300";
-  return "text-rose-300";
-}
-
-function PlayerCard({
-  player,
-  teamColor,
-}: {
-  player: MatchPlayer;
-  teamColor: "blue" | "rose";
-}) {
-  const borderColor = teamColor === "blue" ? "border-blue-500/30" : "border-rose-500/30";
-  const bgColor = teamColor === "blue" ? "from-blue-500/10" : "from-rose-500/10";
-
-  const isKeeper = positionGroup(player.position) === "GK";
-  const isAttacker = positionGroup(player.position) === "FWD";
-
-  const stats: Array<{ label: string; value: string | number }> = isKeeper
-    ? (() => {
-        const totalShotsFaced = player.saves + player.goalsConceded;
-        const savePct =
-          totalShotsFaced > 0
-            ? Math.round((player.saves / totalShotsFaced) * 100)
-            : null;
-        return [
-          { label: "Saves", value: player.saves },
-          { label: "Save %", value: savePct != null ? `${savePct}%` : "—" },
-          { label: "Goals Cond.", value: player.goalsConceded },
-          { label: "Pen. Saved", value: player.penaltiesSaved },
-          { label: "Passes", value: player.passes },
-          {
-            label: "Pass Acc",
-            value: player.passAccuracy != null ? `${player.passAccuracy}%` : "—",
-          },
-        ];
-      })()
-    : isAttacker
-    ? [
-        { label: "Passes", value: player.passes },
-        {
-          label: "Pass Acc",
-          value: player.passAccuracy != null ? `${player.passAccuracy}%` : "—",
-        },
-        { label: "Key Pass", value: player.keyPasses },
-        { label: "Shots", value: player.shots },
-        { label: "Goals", value: player.goals },
-        { label: "Dribbles", value: player.dribbles },
-      ]
-    : [
-        { label: "Passes", value: player.passes },
-        {
-          label: "Pass Acc",
-          value: player.passAccuracy != null ? `${player.passAccuracy}%` : "—",
-        },
-        { label: "Key Pass", value: player.keyPasses },
-        { label: "Tackles", value: player.tackles },
-        { label: "Intercepts", value: player.interceptions },
-        { label: "Duels Won", value: player.duelsWon },
-      ];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-gradient-to-r ${bgColor} to-transparent border ${borderColor} rounded-lg p-4`}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <div className="text-white font-semibold">
-            {player.name}
-            {player.substitute && (
-              <span className="text-gray-500 text-xs font-normal ml-2">(sub)</span>
-            )}
-          </div>
-          <div className="text-gray-400 text-xs">
-            {player.position} · #{player.number} · {player.minutes}'
-          </div>
-        </div>
-        <div className={`text-2xl font-bold ${ratingColor(player.rating)}`}>
-          {player.rating?.toFixed(1) ?? "—"}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-[#0f2d4a]/40 rounded p-2">
-            <div className="text-gray-400">{s.label}</div>
-            <div className="text-white font-semibold">{s.value}</div>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
 function positionGroup(pos: string): "GK" | "DEF" | "MID" | "FWD" | "OTHER" {
   const p = pos.toUpperCase();
   if (p === "G" || p.includes("GK")) return "GK";
@@ -261,78 +162,250 @@ function positionGroup(pos: string): "GK" | "DEF" | "MID" | "FWD" | "OTHER" {
   return "OTHER";
 }
 
-function PositionSection({
-  label,
-  players,
-  teamColor,
-  defaultOpen = true,
+function ratingBadgeStyle(rating: number | null): string {
+  if (rating == null) return "bg-gray-700/60 text-gray-500";
+  if (rating >= 8.0) return "bg-emerald-500 text-white";
+  if (rating >= 7.0) return "bg-lime-500 text-gray-900";
+  if (rating >= 6.5) return "bg-amber-400 text-gray-900";
+  if (rating >= 6.0) return "bg-orange-500 text-white";
+  return "bg-rose-600 text-white";
+}
+
+type PosType = "GK" | "DEF" | "MID" | "FWD";
+
+type ColDef = { abbr: string; get: (p: MatchPlayer) => string };
+
+const POSITION_COLS: Record<PosType, ColDef[]> = {
+  GK: [
+    { abbr: "SV",  get: p => String(p.saves) },
+    { abbr: "SV%", get: p => { const t = p.saves + p.goalsConceded; return t > 0 ? `${Math.round((p.saves / t) * 100)}%` : "—"; } },
+    { abbr: "GC",  get: p => String(p.goalsConceded) },
+  ],
+  DEF: [
+    { abbr: "P",  get: p => String(p.passes) },
+    { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+    { abbr: "T",  get: p => String(p.tackles) },
+    { abbr: "I",  get: p => String(p.interceptions) },
+    { abbr: "D",  get: p => String(p.duelsWon) },
+    { abbr: "KP", get: p => String(p.keyPasses) },
+  ],
+  MID: [
+    { abbr: "P",  get: p => String(p.passes) },
+    { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+    { abbr: "KP", get: p => String(p.keyPasses) },
+    { abbr: "T",  get: p => String(p.tackles) },
+    { abbr: "I",  get: p => String(p.interceptions) },
+    { abbr: "D",  get: p => String(p.duelsWon) },
+  ],
+  FWD: [
+    { abbr: "Sh", get: p => String(p.shots) },
+    { abbr: "G",  get: p => String(p.goals) },
+    { abbr: "A",  get: p => String(p.assists) },
+    { abbr: "KP", get: p => String(p.keyPasses) },
+    { abbr: "Dr", get: p => String(p.dribbles) },
+    { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+  ],
+};
+
+function CompactPlayerRow({
+  player,
+  posType,
 }: {
-  label: string;
-  players: MatchPlayer[];
-  teamColor: "blue" | "rose";
-  defaultOpen?: boolean;
+  player: MatchPlayer;
+  posType: PosType;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const headingColor = teamColor === "blue" ? "text-blue-300" : "text-rose-300";
+  const cols = POSITION_COLS[posType];
+  const colW = posType === "GK" ? "w-10" : "w-8";
+
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-2 border-b border-[#0d2540]/60 last:border-0">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-white text-sm font-semibold truncate">{player.name}</span>
+          {player.substitute && (
+            <span className="text-[9px] text-gray-600">(sub)</span>
+          )}
+          {player.cards.yellow > 0 &&
+            Array.from({ length: player.cards.yellow }).map((_, i) => (
+              <span key={i} className="text-[11px] leading-none">🟨</span>
+            ))}
+          {player.cards.red > 0 && (
+            <span className="text-[11px] leading-none">🟥</span>
+          )}
+          {player.goals > 0 &&
+            Array.from({ length: player.goals }).map((_, i) => (
+              <span key={i} className="text-[11px] leading-none">⚽</span>
+            ))}
+          {player.assists > 0 &&
+            Array.from({ length: player.assists }).map((_, i) => (
+              <span key={i} className="text-[10px] leading-none">👟</span>
+            ))}
+        </div>
+        <div className="text-[10px] text-gray-600 mt-0.5">
+          {player.position} · #{player.number} · {player.minutes}'
+        </div>
+      </div>
+      <div className="flex items-center flex-shrink-0">
+        {cols.map((col) => (
+          <span
+            key={col.abbr}
+            className={`${colW} text-center text-xs tabular-nums text-gray-400`}
+          >
+            {col.get(player)}
+          </span>
+        ))}
+      </div>
+      <div
+        className={`${ratingBadgeStyle(player.rating)} text-[11px] font-bold w-11 text-center py-1 rounded-lg flex-shrink-0`}
+      >
+        {player.rating?.toFixed(1) ?? "—"}
+      </div>
+    </div>
+  );
+}
+
+function CompactPositionGroup({
+  title,
+  players,
+  posType,
+}: {
+  title: string;
+  players: MatchPlayer[];
+  posType: PosType;
+}) {
+  if (players.length === 0) return null;
+
+  const cols = POSITION_COLS[posType];
+  const colW = posType === "GK" ? "w-10" : "w-8";
+
+  return (
+    <div className="mb-2 rounded-xl overflow-hidden border border-[#0f2d4a]">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-[#0a1e35]">
+        <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase">
+          {title}{" "}
+          <span className="text-gray-600 font-normal">{players.length}</span>
+        </span>
+        <div className="flex items-center">
+          {cols.map((c) => (
+            <span key={c.abbr} className={`${colW} text-center text-[9px] font-bold text-gray-600`}>
+              {c.abbr}
+            </span>
+          ))}
+          <span className="w-11 text-center text-[9px] font-bold text-gray-600">RTG</span>
+        </div>
+      </div>
+      <div className="bg-[#071e38]/60">
+        {players.map((p) => (
+          <CompactPlayerRow key={p.id} player={p} posType={posType} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TeamRatingsPanel({
+  side,
+  color,
+}: {
+  side: MatchSide;
+  color: "blue" | "rose";
+}) {
+  const dotColor = color === "blue" ? "bg-blue-400" : "bg-rose-400";
+  const nameColor = color === "blue" ? "text-blue-300" : "text-rose-300";
+
+  const starters = side.players.filter((p) => !p.substitute);
+  const activeSubs = side.players.filter((p) => p.substitute && p.minutes > 0);
+
+  const byPos = (pos: "GK" | "DEF" | "MID" | "FWD") =>
+    starters.filter((p) => positionGroup(p.position) === pos);
+
+  const rated = side.players.filter((p) => p.rating != null && p.minutes > 0);
+  const avg =
+    rated.length > 0
+      ? (rated.reduce((s, p) => s + (p.rating ?? 0), 0) / rated.length).toFixed(1)
+      : null;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between ${headingColor} text-sm font-bold mb-3 hover:opacity-80 transition-opacity group`}
-        aria-expanded={open}
-      >
-        <span className="flex items-center gap-2">
-          {label}
-          <span className="text-gray-500 text-xs font-normal">({players.length})</span>
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-0" : "-rotate-90"}`}
-        />
-      </button>
-      {open && (
-        <div className="space-y-3">
-          {players.map((p) => (
-            <PlayerCard key={p.id} player={p} teamColor={teamColor} />
-          ))}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${dotColor} flex-shrink-0`} />
+          <span className={`${nameColor} text-[11px] font-bold tracking-wider uppercase`}>
+            {side.team.name}
+          </span>
         </div>
+        {avg && (
+          <span className="text-gray-500 text-xs">
+            AVG <span className="text-white font-bold">{avg}</span>
+          </span>
+        )}
+      </div>
+      <CompactPositionGroup title="Goalkeepers" players={byPos("GK")} posType="GK" />
+      <CompactPositionGroup title="Defenders" players={byPos("DEF")} posType="DEF" />
+      <CompactPositionGroup title="Midfielders" players={byPos("MID")} posType="MID" />
+      <CompactPositionGroup title="Forwards" players={byPos("FWD")} posType="FWD" />
+      {activeSubs.length > 0 && (
+        <CompactPositionGroup title="Substitutes" players={activeSubs} posType="MID" />
       )}
     </div>
   );
 }
 
-function PlayersByPosition({
-  players,
-  teamColor,
-}: {
-  players: MatchPlayer[];
-  teamColor: "blue" | "rose";
-}) {
-  const starters = players.filter((p) => !p.substitute);
-  const subs = players.filter((p) => p.substitute && p.minutes > 0);
-
-  const groups: Array<{ label: string; list: MatchPlayer[]; defaultOpen?: boolean }> = [
-    { label: "Goalkeepers", list: starters.filter((p) => positionGroup(p.position) === "GK") },
-    { label: "Defenders", list: starters.filter((p) => positionGroup(p.position) === "DEF") },
-    { label: "Midfielders", list: starters.filter((p) => positionGroup(p.position) === "MID") },
-    { label: "Attackers", list: starters.filter((p) => positionGroup(p.position) === "FWD") },
-    { label: "Substitutes", list: subs, defaultOpen: false },
+function ColumnLegend() {
+  const sections: Array<{ pos: string; items: [string, string][] }> = [
+    {
+      pos: "GK",
+      items: [["SV","Saves"],["SV%","Save %"],["GC","Goals Conc."]],
+    },
+    {
+      pos: "DEF",
+      items: [["P","Passes"],["P%","Pass Acc"],["T","Tackles"],["I","Interceptions"],["D","Duels Won"],["KP","Key Passes"]],
+    },
+    {
+      pos: "MID",
+      items: [["P","Passes"],["P%","Pass Acc"],["KP","Key Passes"],["T","Tackles"],["I","Interceptions"],["D","Duels Won"]],
+    },
+    {
+      pos: "FWD",
+      items: [["Sh","Shots"],["G","Goals"],["A","Assists"],["KP","Key Passes"],["Dr","Dribbles"],["P%","Pass Acc"]],
+    },
   ];
-
   return (
-    <div className="space-y-6">
-      {groups.map(({ label, list, defaultOpen }) =>
-        list.length > 0 ? (
-          <PositionSection
-            key={label}
-            label={label}
-            players={list}
-            teamColor={teamColor}
-            defaultOpen={defaultOpen ?? true}
-          />
-        ) : null,
-      )}
+    <div className="space-y-1 text-[10px]">
+      {sections.map(({ pos, items }) => (
+        <div key={pos} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <span className="text-gray-600 font-bold tracking-wider w-7 flex-shrink-0">{pos}</span>
+          {items.map(([abbr, full]) => (
+            <span key={abbr} className="text-gray-600">
+              <span className="text-gray-400 font-bold">{abbr}</span> {full}
+            </span>
+          ))}
+        </div>
+      ))}
+      <div className="flex items-baseline gap-x-3 pt-0.5">
+        <span className="text-gray-600 font-bold tracking-wider w-7 flex-shrink-0">ALL</span>
+        <span className="text-gray-600"><span className="text-gray-400 font-bold">RTG</span> Rating</span>
+      </div>
+    </div>
+  );
+}
+
+function RatingLegend() {
+  const items: Array<{ label: string; cls: string }> = [
+    { label: "8.0+", cls: "bg-emerald-500" },
+    { label: "7.0+", cls: "bg-lime-500" },
+    { label: "6.5+", cls: "bg-amber-400" },
+    { label: "6.0+", cls: "bg-orange-500" },
+    { label: "<6.0", cls: "bg-rose-600" },
+  ];
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {items.map(({ label, cls }) => (
+        <div key={label} className="flex items-center gap-1">
+          <span className={`w-2.5 h-2.5 rounded-sm ${cls} flex-shrink-0`} />
+          <span className="text-[10px] text-gray-500">{label}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1054,16 +1127,15 @@ export default function MatchAnalytics({
           transition={{ delay: 0.4 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
-          <h3 className="text-white text-xl font-bold mb-6">Player Performance Ratings</h3>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div>
-              <h4 className="text-blue-300 text-sm font-bold mb-4">{home.team.name}</h4>
-              <PlayersByPosition players={home.players} teamColor="blue" />
-            </div>
-            <div>
-              <h4 className="text-rose-300 text-sm font-bold mb-4">{away.team.name}</h4>
-              <PlayersByPosition players={away.players} teamColor="rose" />
-            </div>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <h3 className="text-white text-xl font-bold">Player Performance Ratings</h3>
+            <RatingLegend />
+          </div>
+          <ColumnLegend />
+          <div className="mt-5" />
+          <div className="grid lg:grid-cols-2 gap-6">
+            <TeamRatingsPanel side={home} color="blue" />
+            <TeamRatingsPanel side={away} color="rose" />
           </div>
         </motion.div>
 
