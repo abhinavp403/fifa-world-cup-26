@@ -433,91 +433,284 @@ function FormationPitch({
 // Key moments timeline
 // ─────────────────────────────────────────────────────────────────────────────
 
+const EVENT_CONFIG = {
+  goal: {
+    icon: "⚽",
+    label: "Goal",
+    iconBg: "bg-emerald-500/25 ring-1 ring-emerald-500/40",
+    rowBg: "bg-emerald-500/8 border border-emerald-500/20",
+    minuteBg: "bg-emerald-500/20 border-emerald-500/40 text-emerald-200",
+  },
+  yellowCard: {
+    icon: "🟨",
+    label: "Yellow Card",
+    iconBg: "bg-amber-500/20 ring-1 ring-amber-500/30",
+    rowBg: "bg-transparent border border-transparent",
+    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+  },
+  redCard: {
+    icon: "🟥",
+    label: "Red Card",
+    iconBg: "bg-red-600/25 ring-1 ring-red-500/40",
+    rowBg: "bg-red-600/8 border border-red-500/20",
+    minuteBg: "bg-red-600/20 border-red-500/40 text-red-200",
+  },
+  substitution: {
+    icon: "🔄",
+    label: "Substitution",
+    iconBg: "bg-sky-500/15 ring-1 ring-sky-500/20",
+    rowBg: "bg-transparent border border-transparent",
+    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+  },
+} as const;
+
+type EventType = keyof typeof EVENT_CONFIG;
+
+function getEventConfig(type: string) {
+  return EVENT_CONFIG[type as EventType] ?? {
+    icon: "•",
+    label: type,
+    iconBg: "bg-gray-500/15",
+    rowBg: "bg-transparent border border-transparent",
+    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+  };
+}
+
+function toCode(name: string): string {
+  // "Manchester City" → "MAN", "Crystal Palace" → "CRY", "Argentina" → "ARG"
+  return name.slice(0, 3).toUpperCase();
+}
+
 function KeyMomentsTimeline({
   events,
   homeTeamId,
+  homeName,
+  awayName,
 }: {
   events: MatchEvent[];
   homeTeamId: number;
+  homeName: string;
+  awayName: string;
 }) {
-  const typeIcons: Record<string, string> = {
-    goal: "⚽",
-    substitution: "🔄",
-    yellowCard: "🟨",
-    redCard: "🟥",
-  };
-
-  const typeLabels: Record<string, string> = {
-    goal: "Goal",
-    substitution: "Substitution",
-    yellowCard: "Yellow Card",
-    redCard: "Red Card",
-  };
-
   if (events.length === 0) {
-    return (
-      <div className="text-gray-400 text-sm">No events recorded for this fixture.</div>
-    );
+    return <div className="text-gray-400 text-sm">No events recorded for this fixture.</div>;
   }
 
+  const homeCode = toCode(homeName);
+  const awayCode = toCode(awayName);
+
+  const maxMinute = Math.max(90, ...events.map((e) => e.minute + (e.extra ?? 0)));
+  const pct = (minute: number, extra?: number | null) =>
+    Math.min(((minute + (extra ?? 0) * 0.5) / maxMinute) * 100, 96);
+
+  const homeEvents = events.filter((e) => e.teamId === homeTeamId);
+  const awayEvents = events.filter((e) => e.teamId !== homeTeamId);
+
+  // Label column width so team codes sit flush left of the bar.
+  const LABEL_W = "w-9";
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-white text-xl font-bold">Key Moments & Turning Points</h3>
+    <div className="space-y-6">
+      <h3 className="text-white text-xl font-bold">Key Moments</h3>
 
-      <div className="relative py-4">
-        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500/30 via-gray-600/30 to-rose-500/30 transform -translate-x-1/2" />
-
-        <div className="space-y-6">
-          {events.map((e, i) => {
-            const isHome = e.teamId === homeTeamId;
-            const isLeftSide = i % 2 === 0;
-            const bgColor = isHome
-              ? "bg-blue-500/10 border-blue-500/30"
-              : "bg-rose-500/10 border-rose-500/30";
-            const badgeColor = isHome ? "bg-blue-600/70" : "bg-rose-600/70";
-            const textColor = isHome ? "text-blue-300" : "text-rose-300";
-
-            return (
-              <motion.div
-                key={`${e.minute}-${i}`}
-                initial={{ opacity: 0, x: isLeftSide ? -20 : 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={`flex items-center gap-4 ${isLeftSide ? "flex-row" : "flex-row-reverse"}`}
+      {/* ── Visual timeline bar ── */}
+      <div className="select-none">
+        {/* Home (blue) markers above bar — label on the left */}
+        <div className="flex items-end gap-1">
+          <span className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold text-blue-400 tracking-wider text-right pb-0.5`}>
+            {homeCode}
+          </span>
+          <div className="relative h-10 flex-1 mb-0.5">
+            {homeEvents.map((e, i) => (
+              <div
+                key={i}
+                style={{ left: `${pct(e.minute, e.extra)}%` }}
+                className="absolute bottom-0 -translate-x-1/2 flex flex-col items-center"
               >
-                <div className={`w-5/12 ${bgColor} border rounded-lg p-3.5 hover:border-opacity-100 transition-all`}>
-                  <div className="flex items-start gap-2.5">
-                    <div className={`${badgeColor} rounded-full w-9 h-9 flex items-center justify-center flex-shrink-0 font-bold text-sm text-white shadow-md`}>
-                      {typeIcons[e.type] ?? "•"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm leading-tight">
+                <span className="text-[10px] text-blue-300/90 font-bold tabular-nums leading-none mb-0.5">
+                  {e.minute}{e.extra ? `+${e.extra}` : ""}'
+                </span>
+                <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
+                <div className="w-px h-2 bg-blue-400/30 mt-0.5" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* The bar — padded left to align with marker area */}
+        <div className="flex items-center gap-1">
+          <div className={`${LABEL_W} flex-shrink-0`} />
+          <div className="relative h-2.5 rounded-full bg-[#0f2d4a] border border-[#1a4a7a] overflow-visible flex-1">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600/20 via-transparent to-rose-600/20" />
+            <div
+              style={{ left: `${(45 / maxMinute) * 100}%` }}
+              className="absolute top-0 bottom-0 w-px bg-white/15"
+            />
+            {events.map((e, i) => {
+              const isHome = e.teamId === homeTeamId;
+              return (
+                <div
+                  key={i}
+                  style={{ left: `${pct(e.minute, e.extra)}%` }}
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border-2 z-10 ${
+                    isHome ? "bg-blue-400 border-blue-200" : "bg-rose-400 border-rose-200"
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Away (rose) markers below bar — label on the left */}
+        <div className="flex items-start gap-1">
+          <span className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold text-rose-400 tracking-wider text-right pt-0.5`}>
+            {awayCode}
+          </span>
+          <div className="relative h-10 flex-1 mt-0.5">
+            {awayEvents.map((e, i) => (
+              <div
+                key={i}
+                style={{ left: `${pct(e.minute, e.extra)}%` }}
+                className="absolute top-0 -translate-x-1/2 flex flex-col items-center"
+              >
+                <div className="w-px h-2 bg-rose-400/30 mb-0.5" />
+                <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
+                <span className="text-[10px] text-rose-300/90 font-bold tabular-nums leading-none mt-0.5">
+                  {e.minute}{e.extra ? `+${e.extra}` : ""}'
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Axis labels — aligned to bar (not label column) */}
+        <div className="flex gap-1">
+          <div className={`${LABEL_W} flex-shrink-0`} />
+          <div className="flex justify-between text-[10px] text-gray-600 mt-1 flex-1">
+            <span>0'</span>
+            <span>HT 45'</span>
+            <span>{maxMinute}'</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Two-column match facts ── */}
+      <div className="pt-2 border-t border-[#0f2d4a]">
+        {/* Column headers — team names instead of Home / Away */}
+        <div className="grid grid-cols-[1fr_56px_1fr] gap-2 pb-2 text-[10px] font-bold tracking-widest text-gray-500 uppercase px-1">
+          <span className="text-blue-400/70 text-right truncate">{homeName}</span>
+          <span className="text-center">Min</span>
+          <span className="text-rose-400/70 truncate">{awayName}</span>
+        </div>
+
+        {(() => {
+          // Find the index of the first second-half event to insert the HT divider.
+          const htIndex = events.findIndex((e) => e.minute > 45);
+          const rows: React.ReactNode[] = [];
+
+          events.forEach((e, i) => {
+            // Insert HT divider before the first second-half event.
+            if (i === htIndex) {
+              rows.push(
+                <div key="ht-divider" className="grid grid-cols-[1fr_56px_1fr] gap-2 items-center py-1 px-2 my-1">
+                  <div className="h-px bg-white/10" />
+                  <div className="flex justify-center">
+                    <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase bg-[#0f2d4a] border border-[#1a4a7a] px-2 py-0.5 rounded-full whitespace-nowrap">
+                      Half Time
+                    </span>
+                  </div>
+                  <div className="h-px bg-white/10" />
+                </div>,
+              );
+            }
+
+            const isHome = e.teamId === homeTeamId;
+            const cfg = getEventConfig(e.type);
+            const isGoal = e.type === "goal";
+            const isSub = e.type === "substitution";
+
+            const eventContent = (side: "home" | "away") => {
+              const align = side === "home" ? "text-right" : "text-left";
+              return (
+                <div className="min-w-0">
+                  {isSub ? (
+                    <>
+                      <p className={`text-white font-semibold text-xs leading-tight truncate ${align}`}>
+                        <span className="text-emerald-400 font-bold">↑</span> {e.player}
+                      </p>
+                      {e.assist && (
+                        <p className={`text-gray-400 text-xs leading-tight truncate mt-0.5 ${align}`}>
+                          <span className="text-rose-400 font-bold">↓</span> {e.assist}
+                        </p>
+                      )}
+                    </>
+                  ) : isGoal ? (
+                    <>
+                      <p className={`text-white font-semibold text-sm leading-tight truncate ${align}`}>
                         {e.player}
                       </p>
-                      <p className="text-gray-400 text-xs mt-1">
-                        {typeLabels[e.type] ?? e.detail}
-                        {e.assist && e.type === "goal" && (
-                          <span className="text-gray-500"> · assist {e.assist}</span>
-                        )}
+                      {e.assist && (
+                        <p className={`text-gray-400 text-xs mt-0.5 truncate ${align}`}>
+                          Assist: {e.assist}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className={`text-white font-semibold text-sm leading-tight truncate ${align}`}>
+                        {e.player}
                       </p>
+                      <p className={`text-gray-500 text-xs mt-0.5 ${align}`}>{cfg.label}</p>
+                    </>
+                  )}
+                </div>
+              );
+            };
+
+            rows.push(
+              <motion.div
+                key={`${e.minute}-${i}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className={`grid grid-cols-[1fr_56px_1fr] gap-2 items-center py-2.5 px-2 rounded-xl ${cfg.rowBg} transition-colors`}
+              >
+                {/* Home side */}
+                {isHome ? (
+                  <div className="flex items-center gap-2 justify-end">
+                    {eventContent("home")}
+                    <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-base ${cfg.iconBg}`}>
+                      {cfg.icon}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div />
+                )}
 
-                <div className="w-2/12 flex justify-center">
-                  <div className="w-3 h-3 rounded-full bg-gray-600 border-2 border-[#071e38] shadow-md" />
-                </div>
-
-                <div className={`w-5/12 ${isLeftSide ? "text-right" : "text-left"}`}>
-                  <span className={`${textColor} font-bold text-sm px-3 py-1.5 bg-white/5 rounded-lg inline-block`}>
-                    {e.minute}
-                    {e.extra ? `+${e.extra}` : ""}'
+                {/* Centre minute bubble */}
+                <div className="flex justify-center">
+                  <span className={`text-[11px] font-bold tabular-nums px-2 py-1 rounded-full border whitespace-nowrap ${cfg.minuteBg}`}>
+                    {e.minute}{e.extra ? `+${e.extra}` : ""}'
                   </span>
                 </div>
-              </motion.div>
+
+                {/* Away side */}
+                {!isHome ? (
+                  <div className="flex items-center gap-2">
+                    <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-base ${cfg.iconBg}`}>
+                      {cfg.icon}
+                    </div>
+                    {eventContent("away")}
+                  </div>
+                ) : (
+                  <div />
+                )}
+              </motion.div>,
             );
-          })}
-        </div>
+          });
+
+          return rows;
+        })()}
       </div>
     </div>
   );
@@ -770,7 +963,12 @@ export default function MatchAnalytics({
           transition={{ delay: 0.2 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
-          <KeyMomentsTimeline events={events} homeTeamId={home.team.id} />
+          <KeyMomentsTimeline
+            events={events}
+            homeTeamId={home.team.id}
+            homeName={home.team.name}
+            awayName={away.team.name}
+          />
         </motion.div>
 
         {/* Team comparison */}
