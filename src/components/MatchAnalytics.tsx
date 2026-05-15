@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
+  X,
 } from "lucide-react";
 
 import type {
@@ -180,8 +181,7 @@ function PlayerCard({
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      animate={{ opacity: 1, y: 0 }}
       className={`bg-gradient-to-r ${bgColor} to-transparent border ${borderColor} rounded-lg p-4`}
     >
       <div className="flex justify-between items-start mb-3">
@@ -346,8 +346,7 @@ function FormationPitch({
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
       <div className={`flex items-center justify-between pb-3 border-b ${c.borderB}`}>
@@ -482,8 +481,7 @@ function KeyMomentsTimeline({
               <motion.div
                 key={`${e.minute}-${i}`}
                 initial={{ opacity: 0, x: isLeftSide ? -20 : 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className={`flex items-center gap-4 ${isLeftSide ? "flex-row" : "flex-row-reverse"}`}
               >
@@ -529,16 +527,30 @@ function KeyMomentsTimeline({
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function MatchAnalytics() {
+export default function MatchAnalytics({
+  fixtureId,
+  onClose,
+}: {
+  fixtureId: number | null;
+  onClose?: () => void;
+}) {
   const [data, setData] = useState<MatchPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (fixtureId == null) {
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     (async () => {
       try {
-        const res = await fetch("/api/match");
+        const res = await fetch(`/api/match?id=${fixtureId}`);
         const json = await res.json();
         if (cancelled) return;
         if (!json.live) {
@@ -555,30 +567,78 @@ export default function MatchAnalytics() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fixtureId]);
+
+  // Lock body scroll + listen for ESC while the dialog is open.
+  useEffect(() => {
+    if (fixtureId == null) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [fixtureId, onClose]);
+
+  if (fixtureId == null) return null;
+
+  const dialogShell = (children: React.ReactNode) => (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6"
+    >
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Close analytics"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      {/* Dialog card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="relative bg-[#020d1c] border border-[#1a4a7a] sm:rounded-2xl w-full sm:max-w-6xl max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="sticky top-3 float-right mr-3 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[#071e38]/90 border border-[#1a4a7a] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+        {children}
+      </motion.div>
+    </div>
+  );
 
   if (loading) {
-    return (
-      <section id="analytics" className="px-4 py-10 scroll-mt-12">
-        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center py-20 text-gray-400">
-          <Loader2 className="w-8 h-8 animate-spin mb-3" />
-          <p className="text-sm">Fetching latest match data…</p>
-        </div>
-      </section>
+    return dialogShell(
+      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-3" />
+        <p className="text-sm">Fetching latest match data…</p>
+      </div>,
     );
   }
 
   if (error || !data) {
-    return (
-      <section id="analytics" className="px-4 py-10 scroll-mt-12">
-        <div className="max-w-3xl mx-auto bg-[#071e38]/80 border border-rose-500/30 rounded-2xl p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
-          <p className="text-white font-semibold mb-1">Match data unavailable</p>
-          <p className="text-gray-400 text-sm">
-            {error ?? "Make sure API_FOOTBALL_KEY is set in .env.local."}
-          </p>
-        </div>
-      </section>
+    return dialogShell(
+      <div className="max-w-3xl mx-auto bg-[#071e38]/80 border border-rose-500/30 rounded-2xl p-6 text-center m-6">
+        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
+        <p className="text-white font-semibold mb-1">Match data unavailable</p>
+        <p className="text-gray-400 text-sm">
+          {error ?? "Make sure API_FOOTBALL_KEY is set in .env.local."}
+        </p>
+      </div>,
     );
   }
 
@@ -605,14 +665,13 @@ export default function MatchAnalytics() {
     away: sumFromPlayers(away, "duelsWon"),
   };
 
-  return (
-    <section id="analytics" className="px-4 py-10 scroll-mt-12">
+  return dialogShell(
+    <div className="px-4 sm:px-6 py-8 sm:py-10">
       <div className="max-w-7xl mx-auto">
         {/* Match header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
           <div className="text-gray-500 text-xs uppercase tracking-wider text-center mb-3">
@@ -666,8 +725,7 @@ export default function MatchAnalytics() {
         {/* Key stats grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8"
         >
@@ -708,8 +766,7 @@ export default function MatchAnalytics() {
         {/* Key moments timeline */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
@@ -719,8 +776,7 @@ export default function MatchAnalytics() {
         {/* Team comparison */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
@@ -762,8 +818,7 @@ export default function MatchAnalytics() {
         {/* Player ratings */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
@@ -783,8 +838,7 @@ export default function MatchAnalytics() {
         {/* Formations */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
@@ -795,6 +849,6 @@ export default function MatchAnalytics() {
           </div>
         </motion.div>
       </div>
-    </section>
+    </div>,
   );
 }
