@@ -77,7 +77,9 @@ function StatCard({
   );
 }
 
-function ProgressBar({
+const COMPARISON_COLS = "3rem 1fr 7.5rem 1fr 3rem";
+
+function ComparisonRow({
   label,
   homeValue,
   awayValue,
@@ -91,24 +93,61 @@ function ProgressBar({
   const total = homeValue + awayValue;
   const homePct = total > 0 ? (homeValue / total) * 100 : 50;
   const awayPct = total > 0 ? (awayValue / total) * 100 : 50;
+  const homeWins = homeValue > awayValue;
+  const awayWins = awayValue > homeValue;
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center text-xs">
-        <span className="text-gray-400">{label}</span>
-        <span className="text-gray-500">
-          {homeValue} — {awayValue} {unit}
-        </span>
+    <div
+      className="grid items-center gap-x-2 py-0.5"
+      style={{ gridTemplateColumns: COMPARISON_COLS }}
+    >
+      {/* Home value */}
+      <div
+        className={`text-right text-base font-black tabular-nums tracking-tight leading-none ${
+          homeWins ? "text-blue-300" : "text-gray-600"
+        }`}
+      >
+        {homeValue}
+        {unit && <span className="text-[10px] font-bold">{unit}</span>}
       </div>
-      <div className="flex gap-1 h-2 rounded-full bg-[#0f2d4a]">
+
+      {/* Home bar — right-aligned, grows inward from center label */}
+      <div className="min-w-0 flex justify-end h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
         <div
-          className="bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all"
           style={{ width: `${homePct}%` }}
+          className={`h-full rounded-full transition-all duration-700 ${
+            homeWins
+              ? "bg-gradient-to-l from-blue-400 to-blue-600"
+              : "bg-blue-900/40"
+          }`}
         />
+      </div>
+
+      {/* Centre label */}
+      <div className="text-center text-[9px] font-bold tracking-widest text-gray-500 uppercase truncate px-1">
+        {label}
+      </div>
+
+      {/* Away bar — left-aligned, grows inward from center label */}
+      <div className="min-w-0 flex justify-start h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
         <div
-          className="bg-gradient-to-r from-rose-500 to-rose-400 rounded-full transition-all"
           style={{ width: `${awayPct}%` }}
+          className={`h-full rounded-full transition-all duration-700 ${
+            awayWins
+              ? "bg-gradient-to-r from-rose-400 to-rose-600"
+              : "bg-rose-900/30"
+          }`}
         />
+      </div>
+
+      {/* Away value */}
+      <div
+        className={`text-left text-base font-black tabular-nums tracking-tight leading-none ${
+          awayWins ? "text-rose-300" : "text-gray-600"
+        }`}
+      >
+        {awayValue}
+        {unit && <span className="text-[10px] font-bold">{unit}</span>}
       </div>
     </div>
   );
@@ -978,38 +1017,33 @@ export default function MatchAnalytics({
           transition={{ delay: 0.3 }}
           className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
         >
-          <h3 className="text-white text-xl font-bold mb-6">Team Comparison</h3>
-          <div className="space-y-4">
-            <ProgressBar
-              label="Possession"
-              homeValue={home.stats.possession}
-              awayValue={away.stats.possession}
-              unit="%"
-            />
-            <ProgressBar label="Shots" homeValue={home.stats.shots} awayValue={away.stats.shots} />
-            <ProgressBar
-              label="Shots on Target"
-              homeValue={home.stats.shotsOnTarget}
-              awayValue={away.stats.shotsOnTarget}
-            />
-            <ProgressBar
-              label="Total Passes"
-              homeValue={home.stats.totalPasses}
-              awayValue={away.stats.totalPasses}
-            />
-            <ProgressBar
-              label="Pass Accuracy"
-              homeValue={home.stats.passAccuracy}
-              awayValue={away.stats.passAccuracy}
-              unit="%"
-            />
-            <ProgressBar label="Key Passes" homeValue={home.stats.keyPasses} awayValue={away.stats.keyPasses} />
-            <ProgressBar label="Tackles" homeValue={tackles.home} awayValue={tackles.away} />
-            <ProgressBar label="Interceptions" homeValue={intercepts.home} awayValue={intercepts.away} />
-            <ProgressBar label="Dribbles Completed" homeValue={dribbles.home} awayValue={dribbles.away} />
-            <ProgressBar label="Duels Won" homeValue={duelsWon.home} awayValue={duelsWon.away} />
-            <ProgressBar label="Fouls" homeValue={home.stats.fouls} awayValue={away.stats.fouls} />
-            <ProgressBar label="Corners" homeValue={home.stats.corners} awayValue={away.stats.corners} />
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-white text-xl font-bold">Team Comparison</h3>
+          </div>
+          {/* Team name headers */}
+          <div
+            className="grid gap-x-2 mb-3"
+            style={{ gridTemplateColumns: COMPARISON_COLS }}
+          >
+            <div />
+            <p className="text-right text-[11px] font-bold tracking-wider text-blue-400/80 truncate">{home.team.name}</p>
+            <div />
+            <p className="text-left text-[11px] font-bold tracking-wider text-rose-400/80 truncate">{away.team.name}</p>
+            <div />
+          </div>
+          <div className="space-y-2">
+            <ComparisonRow label="Possession" homeValue={home.stats.possession} awayValue={away.stats.possession} unit="%" />
+            <ComparisonRow label="Shots" homeValue={home.stats.shots} awayValue={away.stats.shots} />
+            <ComparisonRow label="Shots on Target" homeValue={home.stats.shotsOnTarget} awayValue={away.stats.shotsOnTarget} />
+            <ComparisonRow label="Total Passes" homeValue={home.stats.totalPasses} awayValue={away.stats.totalPasses} />
+            <ComparisonRow label="Pass Accuracy" homeValue={home.stats.passAccuracy} awayValue={away.stats.passAccuracy} unit="%" />
+            <ComparisonRow label="Key Passes" homeValue={home.stats.keyPasses} awayValue={away.stats.keyPasses} />
+            <ComparisonRow label="Tackles" homeValue={tackles.home} awayValue={tackles.away} />
+            <ComparisonRow label="Interceptions" homeValue={intercepts.home} awayValue={intercepts.away} />
+            <ComparisonRow label="Dribbles Completed" homeValue={dribbles.home} awayValue={dribbles.away} />
+            <ComparisonRow label="Duels Won" homeValue={duelsWon.home} awayValue={duelsWon.away} />
+            <ComparisonRow label="Fouls" homeValue={home.stats.fouls} awayValue={away.stats.fouls} />
+            <ComparisonRow label="Corners" homeValue={home.stats.corners} awayValue={away.stats.corners} />
           </div>
         </motion.div>
 
