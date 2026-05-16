@@ -194,3 +194,60 @@ export const HOST_CITIES: HostCity[] = [
   { city: "San Francisco",  country: "USA",     stadium: "Levi's Stadium",          capacity: 68500, matches: 6 },
   { city: "Seattle",        country: "USA",     stadium: "Lumen Field",             capacity: 69000, matches: 6 },
 ];
+
+// Primary identity color per team — tuned for visibility on dark backgrounds.
+export const TEAM_COLORS: Record<string, string> = {
+  // Group A
+  MEX: "#00A651", KOR: "#CD2E3A", CZE: "#D7141A", RSA: "#FFB612",
+  // Group B
+  CAN: "#FF0000", SUI: "#DC0000", BIH: "#1E56A0", QAT: "#8D1B3D",
+  // Group C
+  BRA: "#F7D117", MAR: "#C1272D", SCO: "#005EB8", HAI: "#1A3DBF",
+  // Group D
+  USA: "#BF0A30", AUS: "#FFCD00", TUR: "#E30A17", PAR: "#0038A8",
+  // Group E
+  GER: "#FFCC00", ECU: "#FFD100", CIV: "#F77F00", CUW: "#1A5DC5",
+  // Group F
+  NED: "#FF6600", JPN: "#1A5CC5", SWE: "#006AA7", TUN: "#E70013",
+  // Group G
+  BEL: "#BD0304", IRN: "#239F40", EGY: "#CE1126", NZL: "#CC142B",
+  // Group H
+  ESP: "#C60B1E", URU: "#5EB6E4", KSA: "#009651", CPV: "#1A58B3",
+  // Group I
+  FRA: "#0066CC", SEN: "#00A04C", NOR: "#EF2B2D", IRQ: "#009933",
+  // Group J
+  ARG: "#74ACDF", AUT: "#ED2939", ALG: "#009B54", JOR: "#CE1126",
+  // Group K
+  POR: "#D62828", COL: "#FCD116", COD: "#007FFF", UZB: "#1EB53A",
+  // Group L
+  ENG: "#CF081F", CRO: "#CC0000", GHA: "#008B4C", PAN: "#DA121A",
+};
+
+// Away / alternate kit color — used when primary clashes with the opponent's primary.
+// Chosen to be visually distinct from the team's own primary and from common clash partners.
+export const TEAM_SECONDARY_COLORS: Record<string, string> = {
+  // Group A — primaries: green, red, red, gold
+  MEX: "#F0F0F0", KOR: "#003087", CZE: "#F0F0F0", RSA: "#007A4D",
+  // Group B — primaries: red, red, blue, maroon
+  CAN: "#F0F0F0", SUI: "#F0F0F0", BIH: "#F5C518", QAT: "#F0F0F0",
+  // Group C — primaries: yellow, red, blue, blue
+  BRA: "#1E4D8C", MAR: "#006233", SCO: "#F5C518", HAI: "#F0F0F0",
+  // Group D — primaries: red, gold, red, blue
+  USA: "#002868", AUS: "#00843D", TUR: "#F0F0F0", PAR: "#F0F0F0",
+  // Group E — primaries: gold, yellow, orange, blue
+  GER: "#F0F0F0", ECU: "#003DA5", CIV: "#009A44", CUW: "#F7CF00",
+  // Group F — primaries: orange, blue, blue, red
+  NED: "#003DA5", JPN: "#CE1126", SWE: "#FECC02", TUN: "#F0F0F0",
+  // Group G — primaries: red, green, red, red
+  BEL: "#003DA5", IRN: "#F0F0F0", EGY: "#F0F0F0", NZL: "#000000",
+  // Group H — primaries: red, sky-blue, green, blue
+  ESP: "#003DA5", URU: "#F0F0F0", KSA: "#F0F0F0", CPV: "#F0F0F0",
+  // Group I — primaries: blue, green, red, green
+  FRA: "#F0F0F0", SEN: "#FCBB12", NOR: "#003DA5", IRQ: "#F0F0F0",
+  // Group J — primaries: sky-blue, red, green, red
+  ARG: "#F0F0F0", AUT: "#F0F0F0", ALG: "#F0F0F0", JOR: "#F0F0F0",
+  // Group K — primaries: red, yellow, blue, green
+  POR: "#005537", COL: "#003087", COD: "#FFD700", UZB: "#F0F0F0",
+  // Group L — primaries: red, red, green, red
+  ENG: "#F0F0F0", CRO: "#003DA5", GHA: "#F0F0F0", PAN: "#002868",
+};

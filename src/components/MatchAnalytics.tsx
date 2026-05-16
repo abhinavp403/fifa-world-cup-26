@@ -24,6 +24,34 @@ import type {
   MatchFormationPlayer,
 } from "@/app/api/match/route";
 
+import { GROUPS, TEAM_COLORS, TEAM_SECONDARY_COLORS } from "@/lib/worldcup";
+
+function resolveTeamColors(name: string): { primary: string; secondary: string } {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+  const t = norm(name);
+  for (const g of GROUPS) {
+    for (const team of g.teams) {
+      const n = norm(team.name);
+      if (n === t || t.includes(n) || n.includes(t)) {
+        return {
+          primary:   TEAM_COLORS[team.code]           ?? "#3b82f6",
+          secondary: TEAM_SECONDARY_COLORS[team.code] ?? "#f0f0f0",
+        };
+      }
+    }
+  }
+  return { primary: "#3b82f6", secondary: "#f0f0f0" };
+}
+
+function hexDistance(a: string, b: string): number {
+  const c = (h: string, o: number) => parseInt(h.slice(o, o + 2), 16);
+  const [r1, g1, b1] = [c(a, 1), c(a, 3), c(a, 5)];
+  const [r2, g2, b2] = [c(b, 1), c(b, 3), c(b, 5)];
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+}
+
+const CLASH_THRESHOLD = 100;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tiny presentational primitives
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,11 +111,15 @@ function ComparisonRow({
   label,
   homeValue,
   awayValue,
+  homeColor,
+  awayColor,
   unit = "",
 }: {
   label: string;
   homeValue: number;
   awayValue: number;
+  homeColor: string;
+  awayColor: string;
   unit?: string;
 }) {
   const total = homeValue + awayValue;
@@ -103,9 +135,8 @@ function ComparisonRow({
     >
       {/* Home value */}
       <div
-        className={`text-right text-base font-black tabular-nums tracking-tight leading-none ${
-          homeWins ? "text-blue-300" : "text-gray-600"
-        }`}
+        className="text-right text-base font-black tabular-nums tracking-tight leading-none"
+        style={{ color: homeWins ? homeColor : "#4b5563" }}
       >
         {homeValue}
         {unit && <span className="text-[10px] font-bold">{unit}</span>}
@@ -114,12 +145,11 @@ function ComparisonRow({
       {/* Home bar — right-aligned, grows inward from center label */}
       <div className="min-w-0 flex justify-end h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
         <div
-          style={{ width: `${homePct}%` }}
-          className={`h-full rounded-full transition-all duration-700 ${
-            homeWins
-              ? "bg-gradient-to-l from-blue-400 to-blue-600"
-              : "bg-blue-900/40"
-          }`}
+          style={{
+            width: `${homePct}%`,
+            backgroundColor: homeWins ? homeColor : `${homeColor}33`,
+          }}
+          className="h-full rounded-full transition-all duration-700"
         />
       </div>
 
@@ -131,20 +161,18 @@ function ComparisonRow({
       {/* Away bar — left-aligned, grows inward from center label */}
       <div className="min-w-0 flex justify-start h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
         <div
-          style={{ width: `${awayPct}%` }}
-          className={`h-full rounded-full transition-all duration-700 ${
-            awayWins
-              ? "bg-gradient-to-r from-rose-400 to-rose-600"
-              : "bg-rose-900/30"
-          }`}
+          style={{
+            width: `${awayPct}%`,
+            backgroundColor: awayWins ? awayColor : `${awayColor}33`,
+          }}
+          className="h-full rounded-full transition-all duration-700"
         />
       </div>
 
       {/* Away value */}
       <div
-        className={`text-left text-base font-black tabular-nums tracking-tight leading-none ${
-          awayWins ? "text-rose-300" : "text-gray-600"
-        }`}
+        className="text-left text-base font-black tabular-nums tracking-tight leading-none"
+        style={{ color: awayWins ? awayColor : "#4b5563" }}
       >
         {awayValue}
         {unit && <span className="text-[10px] font-bold">{unit}</span>}
@@ -305,13 +333,11 @@ function CompactPositionGroup({
 
 function TeamRatingsPanel({
   side,
-  color,
+  teamColor,
 }: {
   side: MatchSide;
-  color: "blue" | "rose";
+  teamColor: string;
 }) {
-  const dotColor = color === "blue" ? "bg-blue-400" : "bg-rose-400";
-  const nameColor = color === "blue" ? "text-blue-300" : "text-rose-300";
 
   const starters = side.players.filter((p) => !p.substitute);
   const activeSubs = side.players.filter((p) => p.substitute && p.minutes > 0);
@@ -329,8 +355,8 @@ function TeamRatingsPanel({
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${dotColor} flex-shrink-0`} />
-          <span className={`${nameColor} text-[11px] font-bold tracking-wider uppercase`}>
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: teamColor }} />
+          <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: teamColor }}>
             {side.team.name}
           </span>
         </div>
@@ -414,35 +440,15 @@ function RatingLegend() {
 // Formation pitch
 // ─────────────────────────────────────────────────────────────────────────────
 
-const COLOR_CLASSES = {
-  blue: {
-    borderB: "border-blue-500/20",
-    border: "border-blue-500/30",
-    text: "text-blue-300",
-    bgBadge: "bg-blue-600/40",
-    bgChip: "bg-blue-600/20",
-    chipBorder: "border-blue-500/30",
-  },
-  rose: {
-    borderB: "border-rose-500/20",
-    border: "border-rose-500/30",
-    text: "text-rose-300",
-    bgBadge: "bg-rose-600/40",
-    bgChip: "bg-rose-600/20",
-    chipBorder: "border-rose-500/30",
-  },
-} as const;
-
 function FormationPitch({
   side,
-  color,
+  teamColor,
 }: {
   side: MatchSide;
-  color: "blue" | "rose";
+  teamColor: string;
 }) {
-  const c = COLOR_CLASSES[color];
-  const fill = color === "blue" ? "#3b82f6" : "#f43f5e";
-  const stroke = color === "blue" ? "#60a5fa" : "#fb7185";
+  const fill = teamColor;
+  const stroke = teamColor + "aa";
 
   const counts = useMemo(() => {
     const out = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
@@ -461,16 +467,23 @@ function FormationPitch({
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
-      <div className={`flex items-center justify-between pb-3 border-b ${c.borderB}`}>
-        <h5 className={`${c.text} font-bold text-base`}>{side.team.name}</h5>
-        <span className={`text-white text-sm font-bold ${c.bgBadge} px-3 py-1.5 rounded-lg`}>
+      <div
+        className="flex items-center justify-between pb-3 border-b"
+        style={{ borderBottomColor: teamColor + "33" }}
+      >
+        <h5 className="font-bold text-base" style={{ color: teamColor }}>{side.team.name}</h5>
+        <span
+          className="text-white text-sm font-bold px-3 py-1.5 rounded-lg"
+          style={{ backgroundColor: teamColor + "66" }}
+        >
           {side.formation}
         </span>
       </div>
 
       <svg
         viewBox="0 0 100 100"
-        className={`w-full bg-gradient-to-b from-[#0f4a3a] to-[#071e38] rounded-xl border ${c.border} aspect-square shadow-lg`}
+        className="w-full bg-gradient-to-b from-[#0f4a3a] to-[#071e38] rounded-xl border aspect-square shadow-lg"
+        style={{ borderColor: teamColor + "4d" }}
       >
         <rect width="100" height="100" fill="none" stroke="#3ba68f" strokeWidth="0.8" />
         <line x1="0" y1="50" x2="100" y2="50" stroke="#3ba68f" strokeWidth="0.8" />
@@ -531,7 +544,11 @@ function FormationPitch({
         {(["GK", "DEF", "MID", "FWD"] as const).map((k) => (
           <div
             key={k}
-            className={`${c.bgChip} border ${c.chipBorder} rounded-lg px-3 py-2 text-xs`}
+            className="border rounded-lg px-3 py-2 text-xs"
+            style={{
+              backgroundColor: teamColor + "33",
+              borderColor: teamColor + "4d",
+            }}
           >
             {k}: <span className="text-white font-bold">{counts[k]}</span>
           </div>
@@ -598,11 +615,15 @@ function KeyMomentsTimeline({
   homeTeamId,
   homeName,
   awayName,
+  homeColor,
+  awayColor,
 }: {
   events: MatchEvent[];
   homeTeamId: number;
   homeName: string;
   awayName: string;
+  homeColor: string;
+  awayColor: string;
 }) {
   if (events.length === 0) {
     return <div className="text-gray-400 text-sm">No events recorded for this fixture.</div>;
@@ -627,9 +648,12 @@ function KeyMomentsTimeline({
 
       {/* ── Visual timeline bar ── */}
       <div className="select-none">
-        {/* Home (blue) markers above bar — label on the left */}
+        {/* Home markers above bar — label on the left */}
         <div className="flex items-end gap-1">
-          <span className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold text-blue-400 tracking-wider text-right pb-0.5`}>
+          <span
+            className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold tracking-wider text-right pb-0.5`}
+            style={{ color: homeColor }}
+          >
             {homeCode}
           </span>
           <div className="relative h-10 flex-1 mb-0.5">
@@ -639,11 +663,14 @@ function KeyMomentsTimeline({
                 style={{ left: `${pct(e.minute, e.extra)}%` }}
                 className="absolute bottom-0 -translate-x-1/2 flex flex-col items-center"
               >
-                <span className="text-[10px] text-blue-300/90 font-bold tabular-nums leading-none mb-0.5">
+                <span
+                  className="text-[10px] font-bold tabular-nums leading-none mb-0.5"
+                  style={{ color: homeColor + "e6" }}
+                >
                   {e.minute}{e.extra ? `+${e.extra}` : ""}'
                 </span>
                 <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
-                <div className="w-px h-2 bg-blue-400/30 mt-0.5" />
+                <div className="w-px h-2 mt-0.5" style={{ backgroundColor: homeColor + "4d" }} />
               </div>
             ))}
           </div>
@@ -653,7 +680,12 @@ function KeyMomentsTimeline({
         <div className="flex items-center gap-1">
           <div className={`${LABEL_W} flex-shrink-0`} />
           <div className="relative h-2.5 rounded-full bg-[#0f2d4a] border border-[#1a4a7a] overflow-visible flex-1">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600/20 via-transparent to-rose-600/20" />
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: `linear-gradient(to right, ${homeColor}33, transparent, ${awayColor}33)`,
+              }}
+            />
             <div
               style={{ left: `${(45 / maxMinute) * 100}%` }}
               className="absolute top-0 bottom-0 w-px bg-white/15"
@@ -663,19 +695,24 @@ function KeyMomentsTimeline({
               return (
                 <div
                   key={i}
-                  style={{ left: `${pct(e.minute, e.extra)}%` }}
-                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border-2 z-10 ${
-                    isHome ? "bg-blue-400 border-blue-200" : "bg-rose-400 border-rose-200"
-                  }`}
+                  style={{
+                    left: `${pct(e.minute, e.extra)}%`,
+                    backgroundColor: isHome ? homeColor : awayColor,
+                    borderColor: "white",
+                  }}
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border-2 z-10"
                 />
               );
             })}
           </div>
         </div>
 
-        {/* Away (rose) markers below bar — label on the left */}
+        {/* Away markers below bar — label on the left */}
         <div className="flex items-start gap-1">
-          <span className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold text-rose-400 tracking-wider text-right pt-0.5`}>
+          <span
+            className={`${LABEL_W} flex-shrink-0 text-[10px] font-bold tracking-wider text-right pt-0.5`}
+            style={{ color: awayColor }}
+          >
             {awayCode}
           </span>
           <div className="relative h-10 flex-1 mt-0.5">
@@ -685,9 +722,12 @@ function KeyMomentsTimeline({
                 style={{ left: `${pct(e.minute, e.extra)}%` }}
                 className="absolute top-0 -translate-x-1/2 flex flex-col items-center"
               >
-                <div className="w-px h-2 bg-rose-400/30 mb-0.5" />
+                <div className="w-px h-2 mb-0.5" style={{ backgroundColor: awayColor + "4d" }} />
                 <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
-                <span className="text-[10px] text-rose-300/90 font-bold tabular-nums leading-none mt-0.5">
+                <span
+                  className="text-[10px] font-bold tabular-nums leading-none mt-0.5"
+                  style={{ color: awayColor + "e6" }}
+                >
                   {e.minute}{e.extra ? `+${e.extra}` : ""}'
                 </span>
               </div>
@@ -710,9 +750,9 @@ function KeyMomentsTimeline({
       <div className="pt-2 border-t border-[#0f2d4a]">
         {/* Column headers — team names instead of Home / Away */}
         <div className="grid grid-cols-[1fr_56px_1fr] gap-2 pb-2 text-[10px] font-bold tracking-widest text-gray-500 uppercase px-1">
-          <span className="text-blue-400/70 text-right truncate">{homeName}</span>
+          <span className="text-right truncate" style={{ color: homeColor + "b3" }}>{homeName}</span>
           <span className="text-center">Min</span>
-          <span className="text-rose-400/70 truncate">{awayName}</span>
+          <span className="truncate" style={{ color: awayColor + "b3" }}>{awayName}</span>
         </div>
 
         {(() => {
@@ -949,6 +989,14 @@ export default function MatchAnalytics({
 
   const { home, away, events, venue, date, competition, round } = data;
 
+  const homeColors = resolveTeamColors(home.team.name);
+  const awayColors = resolveTeamColors(away.team.name);
+  const homeColor = homeColors.primary;
+  const awayColor =
+    hexDistance(homeColors.primary, awayColors.primary) < CLASH_THRESHOLD
+      ? awayColors.secondary
+      : awayColors.primary;
+
   // Aggregated stats not provided at team level — sum from per-player rows.
   const sumFromPlayers = (side: MatchSide, key: keyof MatchPlayer) =>
     side.players.reduce((acc, p) => acc + ((p[key] as number) ?? 0), 0);
@@ -997,7 +1045,7 @@ export default function MatchAnalytics({
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {home.team.name}
               </div>
-              <div className="text-5xl font-bold text-blue-400">{home.stats.goals}</div>
+              <div className="text-5xl font-bold" style={{ color: homeColor }}>{home.stats.goals}</div>
             </div>
             <div className="text-gray-500 text-2xl font-bold">VS</div>
             <div className="text-center flex-1">
@@ -1014,7 +1062,7 @@ export default function MatchAnalytics({
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {away.team.name}
               </div>
-              <div className="text-5xl font-bold text-rose-400">{away.stats.goals}</div>
+              <div className="text-5xl font-bold" style={{ color: awayColor }}>{away.stats.goals}</div>
             </div>
           </div>
           <p className="text-gray-400 text-center text-sm">
@@ -1080,6 +1128,8 @@ export default function MatchAnalytics({
             homeTeamId={home.team.id}
             homeName={home.team.name}
             awayName={away.team.name}
+            homeColor={homeColor}
+            awayColor={awayColor}
           />
         </motion.div>
 
@@ -1099,24 +1149,24 @@ export default function MatchAnalytics({
             style={{ gridTemplateColumns: COMPARISON_COLS }}
           >
             <div />
-            <p className="text-right text-[11px] font-bold tracking-wider text-blue-400/80 truncate">{home.team.name}</p>
+            <p className="text-right text-[11px] font-bold tracking-wider truncate" style={{ color: homeColor + "cc" }}>{home.team.name}</p>
             <div />
-            <p className="text-left text-[11px] font-bold tracking-wider text-rose-400/80 truncate">{away.team.name}</p>
+            <p className="text-left text-[11px] font-bold tracking-wider truncate" style={{ color: awayColor + "cc" }}>{away.team.name}</p>
             <div />
           </div>
           <div className="space-y-2">
-            <ComparisonRow label="Possession" homeValue={home.stats.possession} awayValue={away.stats.possession} unit="%" />
-            <ComparisonRow label="Shots" homeValue={home.stats.shots} awayValue={away.stats.shots} />
-            <ComparisonRow label="Shots on Target" homeValue={home.stats.shotsOnTarget} awayValue={away.stats.shotsOnTarget} />
-            <ComparisonRow label="Total Passes" homeValue={home.stats.totalPasses} awayValue={away.stats.totalPasses} />
-            <ComparisonRow label="Pass Accuracy" homeValue={home.stats.passAccuracy} awayValue={away.stats.passAccuracy} unit="%" />
-            <ComparisonRow label="Key Passes" homeValue={home.stats.keyPasses} awayValue={away.stats.keyPasses} />
-            <ComparisonRow label="Tackles" homeValue={tackles.home} awayValue={tackles.away} />
-            <ComparisonRow label="Interceptions" homeValue={intercepts.home} awayValue={intercepts.away} />
-            <ComparisonRow label="Dribbles Completed" homeValue={dribbles.home} awayValue={dribbles.away} />
-            <ComparisonRow label="Duels Won" homeValue={duelsWon.home} awayValue={duelsWon.away} />
-            <ComparisonRow label="Fouls" homeValue={home.stats.fouls} awayValue={away.stats.fouls} />
-            <ComparisonRow label="Corners" homeValue={home.stats.corners} awayValue={away.stats.corners} />
+            <ComparisonRow label="Possession" homeValue={home.stats.possession} awayValue={away.stats.possession} unit="%" homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Shots" homeValue={home.stats.shots} awayValue={away.stats.shots} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Shots on Target" homeValue={home.stats.shotsOnTarget} awayValue={away.stats.shotsOnTarget} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Total Passes" homeValue={home.stats.totalPasses} awayValue={away.stats.totalPasses} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Pass Accuracy" homeValue={home.stats.passAccuracy} awayValue={away.stats.passAccuracy} unit="%" homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Key Passes" homeValue={home.stats.keyPasses} awayValue={away.stats.keyPasses} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Tackles" homeValue={tackles.home} awayValue={tackles.away} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Interceptions" homeValue={intercepts.home} awayValue={intercepts.away} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Dribbles Completed" homeValue={dribbles.home} awayValue={dribbles.away} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Duels Won" homeValue={duelsWon.home} awayValue={duelsWon.away} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Fouls" homeValue={home.stats.fouls} awayValue={away.stats.fouls} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Corners" homeValue={home.stats.corners} awayValue={away.stats.corners} homeColor={homeColor} awayColor={awayColor} />
           </div>
         </motion.div>
 
@@ -1134,8 +1184,8 @@ export default function MatchAnalytics({
           <ColumnLegend />
           <div className="mt-5" />
           <div className="grid lg:grid-cols-2 gap-6">
-            <TeamRatingsPanel side={home} color="blue" />
-            <TeamRatingsPanel side={away} color="rose" />
+            <TeamRatingsPanel side={home} teamColor={homeColor} />
+            <TeamRatingsPanel side={away} teamColor={awayColor} />
           </div>
         </motion.div>
 
@@ -1148,8 +1198,8 @@ export default function MatchAnalytics({
         >
           <h3 className="text-white text-xl font-bold mb-6">Formations</h3>
           <div className="grid lg:grid-cols-2 gap-8">
-            <FormationPitch side={home} color="blue" />
-            <FormationPitch side={away} color="rose" />
+            <FormationPitch side={home} teamColor={homeColor} />
+            <FormationPitch side={away} teamColor={awayColor} />
           </div>
         </motion.div>
       </div>
