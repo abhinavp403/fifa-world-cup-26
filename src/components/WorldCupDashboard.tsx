@@ -31,6 +31,8 @@ import {
 import SiteNav from "@/components/SiteNav";
 import KnockoutBracket from "@/components/KnockoutBracket";
 import MatchAnalytics from "@/components/MatchAnalytics";
+import PlayerDashboard from "@/components/PlayerDashboard";
+import { SQUADS } from "@/lib/squads";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
 
@@ -306,16 +308,23 @@ function rankTier(rank: number): { label: string; color: string } {
   return { label: "Outsider", color: "text-rose-300" };
 }
 
-function TeamRow({ team }: { team: Team }) {
-  const tier = rankTier(team.fifaRank);
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-[#0f2d4a] last:border-b-0">
+function TeamRow({
+  team,
+  onTeamClick,
+}: {
+  team: Team;
+  onTeamClick?: (code: string) => void;
+}) {
+  const tier       = rankTier(team.fifaRank);
+  const hasSquad   = !!SQUADS[team.code];
+  const clickable  = hasSquad && !!onTeamClick;
+
+  const inner = (
+    <>
       <span className="text-2xl flex-shrink-0 leading-none">{team.flag}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-white font-semibold text-sm truncate">
-            {team.name}
-          </p>
+          <p className="text-white font-semibold text-sm truncate">{team.name}</p>
           {team.host && (
             <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded">
               HOST
@@ -336,6 +345,24 @@ function TeamRow({ team }: { team: Team }) {
         </div>
         <p className="text-gray-600 text-[10px] mt-0.5">{tier.label}</p>
       </div>
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <button
+        type="button"
+        onClick={() => onTeamClick(team.code)}
+        className="w-full flex items-center gap-3 py-2.5 border-b border-[#0f2d4a] last:border-b-0 hover:bg-[#0f2d4a]/60 transition-colors cursor-pointer text-left rounded-lg px-1 -mx-1"
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-[#0f2d4a] last:border-b-0">
+      {inner}
     </div>
   );
 }
@@ -452,12 +479,14 @@ function GroupCard({
   rows,
   matches,
   onMatchClick,
+  onTeamClick,
 }: {
   group: Group;
   i: number;
   rows?: GroupRow[] | null;
   matches?: GroupMatch[] | null;
   onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+  onTeamClick?: (code: string) => void;
 }) {
   const [matchesOpen, setMatchesOpen] = useState(false);
 
@@ -517,7 +546,7 @@ function GroupCard({
               .slice()
               .sort((a, b) => a.fifaRank - b.fifaRank)
               .map((t) => (
-                <TeamRow key={t.code} team={t} />
+                <TeamRow key={t.code} team={t} onTeamClick={onTeamClick} />
               ))}
           </div>
         )}
@@ -561,9 +590,11 @@ function GroupCard({
 function GroupsSection({
   resolved,
   onMatchClick,
+  onTeamClick,
 }: {
   resolved?: ResolvedGroup[] | null;
   onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+  onTeamClick?: (code: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [confFilter, setConfFilter] = useState<Confederation | "ALL">("ALL");
@@ -684,6 +715,7 @@ function GroupsSection({
                 rows={rowsByLetter.get(g.letter)}
                 matches={matchesByLetter.get(g.letter)}
                 onMatchClick={onMatchClick}
+                onTeamClick={onTeamClick}
               />
             ))}
           </div>
@@ -1184,6 +1216,7 @@ type SelectedMatch =
 export default function WorldCupDashboard() {
   const [data, setData] = useState<WorldCupPayload | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1227,7 +1260,11 @@ export default function WorldCupDashboard() {
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
         <Hero />
         <StatStrip />
-        <GroupsSection resolved={data?.groups} onMatchClick={handleMatchClick} />
+        <GroupsSection
+          resolved={data?.groups}
+          onMatchClick={handleMatchClick}
+          onTeamClick={(code) => setSelectedTeam(code)}
+        />
         <KnockoutBracket
           rounds={data?.bracket}
           thirdPlace={data?.thirdPlace}
@@ -1242,6 +1279,10 @@ export default function WorldCupDashboard() {
         <MatchAnalytics
           fixtureId={analyticsFixtureId}
           onClose={handleClose}
+        />
+        <PlayerDashboard
+          teamCode={selectedTeam}
+          onClose={() => setSelectedTeam(null)}
         />
         {selectedMatch?.type === "upcoming" && (
           <UpcomingMatchModal
