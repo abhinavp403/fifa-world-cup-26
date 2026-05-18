@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
         hostname: "www.thesportsdb.com",
         pathname: "/images/media/player/**",
       },
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+      },
     ],
   },
 };
