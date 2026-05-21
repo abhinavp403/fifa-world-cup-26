@@ -51,8 +51,10 @@ export type MatchPlayer = {
   rating: number | null;
   minutes: number;
   shots: number;
+  shotsOnTarget: number;
   goals: number;
   assists: number;
+  offsides: number;
   passes: number;
   passAccuracy: number | null;
   keyPasses: number;
@@ -189,10 +191,15 @@ function buildSide(
   const allPlayers: MatchPlayer[] = (teamPlayers?.players ?? []).map((p) => {
     const s = p.statistics[0];
     const passes = s?.passes.total ?? 0;
-    const passAcc =
+    // passes.accuracy is the count of accurate passes, not a percentage — compute it.
+    const accuratePasses =
       typeof s?.passes.accuracy === "string"
         ? parseInt(s.passes.accuracy, 10) || null
         : (s?.passes.accuracy as number | null) ?? null;
+    const passAcc =
+      passes > 0 && accuratePasses != null
+        ? Math.round((accuratePasses / passes) * 100)
+        : null;
 
     return {
       id: p.player.id,
@@ -202,8 +209,10 @@ function buildSide(
       rating: s?.games.rating ? parseFloat(s.games.rating) : null,
       minutes: s?.games.minutes ?? 0,
       shots: s?.shots.total ?? 0,
+      shotsOnTarget: s?.shots.on ?? 0,
       goals: s?.goals.total ?? 0,
       assists: s?.goals.assists ?? 0,
+      offsides: s?.offsides ?? 0,
       passes,
       passAccuracy: passAcc,
       keyPasses: s?.passes.key ?? 0,

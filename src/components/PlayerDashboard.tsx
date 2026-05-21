@@ -12,7 +12,7 @@ import { SQUADS, ZERO_STATS, type SquadPlayer, type PlayerStats } from "@/lib/sq
 // Stat column definitions per position
 // ─────────────────────────────────────────────────────────────────────────────
 
-type StatDef = { key: keyof PlayerStats; label: string; title: string };
+type StatDef = { key: keyof PlayerStats; label: string; title: string; fmt?: "rating" | "cards"; key2?: keyof PlayerStats };
 type SortDir = "asc" | "desc";
 
 const POS_STAT_DEFS: Record<string, StatDef[]> = {
@@ -22,6 +22,8 @@ const POS_STAT_DEFS: Record<string, StatDef[]> = {
     { key: "saves",         label: "SV",  title: "Saves"          },
     { key: "cleanSheets",   label: "CS",  title: "Clean Sheets"   },
     { key: "goalsConceded", label: "GC",  title: "Goals Conceded" },
+    { key: "yellowCards", key2: "redCards", label: "YC/RC", title: "Cards (Yellow / Red)", fmt: "cards" },
+    { key: "rating",        label: "RTG", title: "Avg Rating", fmt: "rating" },
   ],
   DEF: [
     { key: "appearances",   label: "AP",  title: "Appearances"    },
@@ -30,14 +32,22 @@ const POS_STAT_DEFS: Record<string, StatDef[]> = {
     { key: "assists",       label: "A",   title: "Assists"        },
     { key: "tackles",       label: "TKL", title: "Tackles"        },
     { key: "interceptions", label: "INT", title: "Interceptions"  },
+    { key: "duelsWon",      label: "DW",  title: "Duels Won"      },
+    { key: "yellowCards", key2: "redCards", label: "YC/RC", title: "Cards (Yellow / Red)", fmt: "cards" },
+    { key: "rating",        label: "RTG", title: "Avg Rating", fmt: "rating" },
   ],
   MID: [
     { key: "appearances",   label: "AP",  title: "Appearances"    },
     { key: "minutesPlayed", label: "MIN", title: "Minutes Played" },
     { key: "goals",         label: "G",   title: "Goals"          },
     { key: "assists",       label: "A",   title: "Assists"        },
+    { key: "shots",         label: "SH",  title: "Shots"          },
     { key: "keyPasses",     label: "KP",  title: "Key Passes"     },
     { key: "dribbles",      label: "DRB", title: "Dribbles"       },
+    { key: "interceptions", label: "INT", title: "Interceptions"  },
+    { key: "duelsWon",      label: "DW",  title: "Duels Won"      },
+    { key: "yellowCards", key2: "redCards", label: "YC/RC", title: "Cards (Yellow / Red)", fmt: "cards" },
+    { key: "rating",        label: "RTG", title: "Avg Rating", fmt: "rating" },
   ],
   FWD: [
     { key: "appearances",   label: "AP",  title: "Appearances"    },
@@ -46,6 +56,11 @@ const POS_STAT_DEFS: Record<string, StatDef[]> = {
     { key: "assists",       label: "A",   title: "Assists"        },
     { key: "shots",         label: "SH",  title: "Shots"          },
     { key: "shotsOnTarget", label: "SOT", title: "Shots on Target"},
+    { key: "keyPasses",     label: "KP",  title: "Key Passes"     },
+    { key: "dribbles",      label: "DRB", title: "Dribbles"       },
+    { key: "offsides",      label: "OFF", title: "Offsides"       },
+    { key: "yellowCards", key2: "redCards", label: "YC/RC", title: "Cards (Yellow / Red)", fmt: "cards" },
+    { key: "rating",        label: "RTG", title: "Avg Rating", fmt: "rating" },
   ],
 };
 
@@ -63,8 +78,18 @@ const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
 // ─────────────────────────────────────────────────────────────────────────────
 
 function statCols(n: number) {
-  // photo | name | n stat columns
-  return `5.5rem 1fr ${"4.2rem ".repeat(n).trim()}`;
+  // photo | name | n stat columns — narrow as columns grow
+  const w = n <= 6 ? 4.2 : n <= 9 ? 3.8 : 3.5;
+  return `5.5rem 1fr ${Array(n).fill(`${w}rem`).join(" ")}`;
+}
+
+function ratingBadge(val: number) {
+  if (val === 0) return { text: "—",              cls: "bg-gray-700/40 text-gray-600" };
+  if (val >= 8.0) return { text: val.toFixed(1),  cls: "bg-emerald-500 text-white"   };
+  if (val >= 7.0) return { text: val.toFixed(1),  cls: "bg-lime-600 text-white"      };
+  if (val >= 6.5) return { text: val.toFixed(1),  cls: "bg-amber-500 text-white"     };
+  if (val >= 6.0) return { text: val.toFixed(1),  cls: "bg-orange-500 text-white"    };
+  return            { text: val.toFixed(1),        cls: "bg-rose-600 text-white"      };
 }
 
 function getStat(player: SquadPlayer, key: keyof PlayerStats): number {
@@ -138,9 +163,34 @@ function PlayerRow({
       </div>
 
       {/* Stat values */}
-      {statDefs.map(({ key }) => {
+      {statDefs.map(({ key, key2, fmt }) => {
         const val = getStat(player, key);
         const isActive = key === sortKey;
+
+        if (fmt === "rating") {
+          const { text, cls } = ratingBadge(val);
+          return (
+            <div key={key} className="flex justify-center">
+              <span className={`text-[11px] font-bold px-2 py-1 rounded-lg tabular-nums ${cls}`}>
+                {text}
+              </span>
+            </div>
+          );
+        }
+
+        if (fmt === "cards") {
+          const yc = val;
+          const rc = key2 ? getStat(player, key2) : 0;
+          const hasCards = yc > 0 || rc > 0;
+          return (
+            <p key={key} className="text-center tabular-nums text-sm leading-none">
+              <span className={yc > 0 ? "text-amber-400 font-bold" : "text-gray-700"}>{yc}</span>
+              <span className="text-gray-600 mx-0.5">/</span>
+              <span className={rc > 0 ? "text-rose-500 font-bold" : "text-gray-700"}>{rc}</span>
+            </p>
+          );
+        }
+
         return (
           <p
             key={key}
@@ -326,7 +376,7 @@ export default function PlayerDashboard({
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-[#020d1c] border border-[#1a4a7a] sm:rounded-2xl w-full sm:max-w-5xl max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="relative bg-[#020d1c] border border-[#1a4a7a] sm:rounded-2xl w-full sm:max-w-[80vw] max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
       >
         <div
           className="h-1 w-full rounded-t-2xl flex-shrink-0"
@@ -420,10 +470,14 @@ export default function PlayerDashboard({
             { label: "GC",  title: "Goals Conceded"  },
             { label: "TKL", title: "Tackles"         },
             { label: "INT", title: "Interceptions"   },
+            { label: "DW",  title: "Duels Won"       },
             { label: "KP",  title: "Key Passes"      },
             { label: "DRB", title: "Dribbles"        },
             { label: "SH",  title: "Shots"           },
             { label: "SOT", title: "Shots on Target" },
+            { label: "OFF",   title: "Offsides"              },
+            { label: "YC/RC", title: "Cards (Yellow / Red)"  },
+            { label: "RTG",   title: "Avg Match Rating"      },
           ].map(({ label, title }) => (
             <div key={label} className="flex items-center gap-2">
               <span className="text-[9px] font-black tracking-wider text-gray-300 w-7 flex-shrink-0">

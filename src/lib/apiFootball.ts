@@ -118,6 +118,7 @@ export type AFPlayerStats = {
       duels: { total: number | null; won: number | null };
       dribbles: { attempts: number | null; success: number | null };
       fouls: { drawn: number | null; committed: number | null };
+      offsides: number | null;
       cards: { yellow: number; red: number };
     }>;
   }>;

@@ -40,7 +40,7 @@ function resolveTeamColors(name: string): { primary: string; secondary: string }
       }
     }
   }
-  return { primary: "#3b82f6", secondary: "#f0f0f0" };
+  return { primary: "#3b82f6", secondary: "#f43f5e" };
 }
 
 function hexDistance(a: string, b: string): number {
@@ -193,13 +193,13 @@ function positionGroup(pos: string): "GK" | "DEF" | "MID" | "FWD" | "OTHER" {
 function ratingBadgeStyle(rating: number | null): string {
   if (rating == null) return "bg-gray-700/60 text-gray-500";
   if (rating >= 8.0) return "bg-emerald-500 text-white";
-  if (rating >= 7.0) return "bg-lime-500 text-gray-900";
-  if (rating >= 6.5) return "bg-amber-400 text-gray-900";
+  if (rating >= 7.0) return "bg-lime-600 text-white";
+  if (rating >= 6.5) return "bg-amber-500 text-white";
   if (rating >= 6.0) return "bg-orange-500 text-white";
   return "bg-rose-600 text-white";
 }
 
-type PosType = "GK" | "DEF" | "MID" | "FWD";
+type PosType = "GK" | "DEF" | "MID" | "FWD" | "SUB";
 
 type ColDef = { abbr: string; get: (p: MatchPlayer) => string };
 
@@ -226,12 +226,19 @@ const POSITION_COLS: Record<PosType, ColDef[]> = {
     { abbr: "D",  get: p => String(p.duelsWon) },
   ],
   FWD: [
-    { abbr: "Sh", get: p => String(p.shots) },
-    { abbr: "G",  get: p => String(p.goals) },
-    { abbr: "A",  get: p => String(p.assists) },
-    { abbr: "KP", get: p => String(p.keyPasses) },
-    { abbr: "Dr", get: p => String(p.dribbles) },
+    { abbr: "Sh",  get: p => String(p.shots) },
+    { abbr: "SoT", get: p => String(p.shotsOnTarget) },
+    { abbr: "P",   get: p => String(p.passes) },
+    { abbr: "Dr",  get: p => String(p.dribbles) },
+    { abbr: "Off", get: p => String(p.offsides) },
+    { abbr: "P%",  get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+  ],
+  SUB: [
+    { abbr: "P",  get: p => String(p.passes) },
     { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+    { abbr: "T",  get: p => String(p.tackles) },
+    { abbr: "Dr", get: p => String(p.dribbles) },
+    { abbr: "D",  get: p => String(p.duelsWon) },
   ],
 };
 
@@ -252,6 +259,9 @@ function CompactPlayerRow({
           <span className="text-white text-sm font-semibold truncate">{player.name}</span>
           {player.substitute && (
             <span className="text-[9px] text-gray-600">(sub)</span>
+          )}
+          {!player.substitute && player.minutes > 0 && player.minutes < 90 && player.cards.red === 0 && (
+            <span className="text-[9px] font-semibold text-orange-400/80">↓{player.minutes}'</span>
           )}
           {player.cards.yellow > 0 &&
             Array.from({ length: player.cards.yellow }).map((_, i) => (
@@ -371,47 +381,27 @@ function TeamRatingsPanel({
       <CompactPositionGroup title="Midfielders" players={byPos("MID")} posType="MID" />
       <CompactPositionGroup title="Forwards" players={byPos("FWD")} posType="FWD" />
       {activeSubs.length > 0 && (
-        <CompactPositionGroup title="Substitutes" players={activeSubs} posType="MID" />
+        <CompactPositionGroup title="Substitutes" players={activeSubs} posType="SUB" />
       )}
     </div>
   );
 }
 
 function ColumnLegend() {
-  const sections: Array<{ pos: string; items: [string, string][] }> = [
-    {
-      pos: "GK",
-      items: [["SV","Saves"],["SV%","Save %"],["GC","Goals Conc."]],
-    },
-    {
-      pos: "DEF",
-      items: [["P","Passes"],["P%","Pass Acc"],["T","Tackles"],["I","Interceptions"],["D","Duels Won"],["KP","Key Passes"]],
-    },
-    {
-      pos: "MID",
-      items: [["P","Passes"],["P%","Pass Acc"],["KP","Key Passes"],["T","Tackles"],["I","Interceptions"],["D","Duels Won"]],
-    },
-    {
-      pos: "FWD",
-      items: [["Sh","Shots"],["G","Goals"],["A","Assists"],["KP","Key Passes"],["Dr","Dribbles"],["P%","Pass Acc"]],
-    },
+  const items: [string, string][] = [
+    ["SV", "Saves"], ["SV%", "Save %"], ["GC", "Goals Conc."],
+    ["P", "Passes"], ["P%", "Pass Acc"], ["KP", "Key Passes"],
+    ["T", "Tackles"], ["I", "Interceptions"], ["D", "Duels Won"],
+    ["Sh", "Shots"], ["SoT", "Shots on Target"], ["Off", "Offsides"],
+    ["Dr", "Dribbles"], ["RTG", "Rating"],
   ];
   return (
-    <div className="space-y-1 text-[10px]">
-      {sections.map(({ pos, items }) => (
-        <div key={pos} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <span className="text-gray-600 font-bold tracking-wider w-7 flex-shrink-0">{pos}</span>
-          {items.map(([abbr, full]) => (
-            <span key={abbr} className="text-gray-600">
-              <span className="text-gray-400 font-bold">{abbr}</span> {full}
-            </span>
-          ))}
-        </div>
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
+      {items.map(([abbr, full]) => (
+        <span key={abbr} className="text-gray-600 whitespace-nowrap">
+          <span className="text-gray-400 font-bold">{abbr}</span> {full}
+        </span>
       ))}
-      <div className="flex items-baseline gap-x-3 pt-0.5">
-        <span className="text-gray-600 font-bold tracking-wider w-7 flex-shrink-0">ALL</span>
-        <span className="text-gray-600"><span className="text-gray-400 font-bold">RTG</span> Rating</span>
-      </div>
     </div>
   );
 }
@@ -461,6 +451,30 @@ function FormationPitch({
     return out;
   }, [side.startXI]);
 
+  // Stretch positions to fill the full pitch via min-max scaling.
+  // Preserves the exact formation shape (4-2-2-2 stays 4-2-2-2) — only scales the coordinate range.
+  const normalizedXI = useMemo(() => {
+    if (side.startXI.length === 0) return [];
+    const xs = side.startXI.map((p) => p.x);
+    const ys = side.startXI.map((p) => p.y);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    // Asymmetric padding: bottom needs room for the name label (+7.5 below center),
+    // top needs room for flag icons (−4 above center), sides need circle radius clearance.
+    const X_PAD = 11;
+    const Y_TOP = 13;
+    const Y_BOT = 17;
+    const scaleX = (v: number) =>
+      xMin === xMax ? 50 : X_PAD + ((v - xMin) / (xMax - xMin)) * (100 - 2 * X_PAD);
+    const scaleY = (v: number) =>
+      yMin === yMax ? 50 : Y_TOP + ((v - yMin) / (yMax - yMin)) * (100 - Y_TOP - Y_BOT);
+    return side.startXI.map((p) => ({
+      ...p,
+      nx: scaleX(p.x),
+      ny: scaleY(p.y),
+    }));
+  }, [side.startXI]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -492,7 +506,7 @@ function FormationPitch({
         <rect x="35" y="0" width="30" height="14" fill="none" stroke="#3ba68f" strokeWidth="0.8" />
         <rect x="35" y="86" width="30" height="14" fill="none" stroke="#3ba68f" strokeWidth="0.8" />
 
-        {side.startXI.map((p) => {
+        {normalizedXI.map((p) => {
           const stats = side.players.find((sp) => sp.id === p.id);
           const flags: string[] = [];
           if (stats) {
@@ -506,19 +520,23 @@ function FormationPitch({
           }
           return (
             <g key={p.id}>
-              <circle cx={p.x} cy={p.y} r="3.2" fill={fill} stroke={stroke} strokeWidth="0.8" opacity="0.95" />
+              <circle cx={p.nx} cy={p.ny} r="4.2" fill={fill} stroke={stroke} strokeWidth="0.8" opacity="0.95" />
               <text
-                x={p.x}
-                y={p.y}
+                x={p.nx}
+                y={p.ny}
                 textAnchor="middle"
                 dy="0.35em"
-                className="text-[4.5px] fill-white font-bold"
+                fill="white"
+                stroke="rgba(0,0,0,0.65)"
+                strokeWidth="0.7"
+                paintOrder="stroke"
+                className="text-[5px] font-bold"
               >
                 {p.number}
               </text>
               <text
-                x={p.x}
-                y={p.y + 6}
+                x={p.nx}
+                y={p.ny + 7.5}
                 textAnchor="middle"
                 className="text-[3px] fill-white/80 font-medium"
               >
@@ -527,8 +545,8 @@ function FormationPitch({
               {flags.map((icon, idx) => (
                 <text
                   key={idx}
-                  x={p.x + 4 + idx * 3.2}
-                  y={p.y - 2.5}
+                  x={p.nx + 5 + idx * 3.4}
+                  y={p.ny - 4}
                   textAnchor="middle"
                   className="text-[3.2px]"
                 >
