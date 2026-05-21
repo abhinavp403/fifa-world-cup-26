@@ -666,12 +666,27 @@ function GroupsSection({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search team…"
-              className="bg-[#071e38] border border-[#0f2d4a] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 w-44"
-            />
+            <div className="relative">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search team…"
+                className="bg-[#071e38] border border-[#0f2d4a] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 w-44 pr-8"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  aria-label="Clear search"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="2" y1="2" x2="12" y2="12" />
+                    <line x1="12" y1="2" x2="2" y2="12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
