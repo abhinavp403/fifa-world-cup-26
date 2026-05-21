@@ -18,7 +18,7 @@ const NAV_LINKS = [
   { label: "Analytics",  href: "#analytics", icon: BarChart3 },
 ];
 
-export default function SiteNav() {
+export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean }) {
   const [active, setActive] = useState<string>("#overview");
   const [progress, setProgress] = useState(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -95,16 +95,23 @@ export default function SiteNav() {
         <a
           href="#overview"
           onClick={(e) => scrollTo(e, "#overview")}
-          className="flex items-center gap-3 bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl px-3 py-3 pointer-events-auto hover:border-blue-500/40 transition-colors"
+          title={isModalOpen ? "WC26 Dashboard" : undefined}
+          className={`flex items-center bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl py-3 pointer-events-auto hover:border-blue-500/40 transition-all duration-300 ${
+            isModalOpen ? "px-3 gap-0 justify-center" : "px-3 gap-3"
+          }`}
         >
           <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/30 to-emerald-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
             <Trophy className="w-4 h-4 text-blue-200" />
           </span>
-          <div className="pr-1">
-            <p className="text-white font-bold text-sm leading-none tracking-tight">
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              isModalOpen ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            }`}
+          >
+            <p className="text-white font-bold text-sm leading-none tracking-tight whitespace-nowrap pr-1">
               WC<span className="text-blue-400">26</span>
             </p>
-            <p className="text-gray-500 text-[10px] mt-1 tracking-widest uppercase">
+            <p className="text-gray-500 text-[10px] mt-1 tracking-widest uppercase whitespace-nowrap">
               Dashboard
             </p>
           </div>
@@ -119,7 +126,10 @@ export default function SiteNav() {
                 key={href}
                 href={href}
                 onClick={(e) => scrollTo(e, href)}
-                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-300 ${
+                title={isModalOpen ? label : undefined}
+                className={`group relative flex items-center rounded-xl py-2.5 transition-all duration-300 ${
+                  isModalOpen ? "gap-0 px-2.5 justify-center" : "gap-3 px-3"
+                } ${
                   isActive
                     ? "bg-blue-500/15 text-white"
                     : "text-gray-400 hover:text-white hover:bg-[#0f2d4a]"
@@ -136,7 +146,11 @@ export default function SiteNav() {
                     isActive ? "text-blue-300" : "text-gray-500 group-hover:text-gray-300"
                   }`}
                 />
-                <span className="text-sm font-semibold whitespace-nowrap pr-2">
+                <span
+                  className={`overflow-hidden transition-all duration-300 text-sm font-semibold whitespace-nowrap ${
+                    isModalOpen ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100 pr-2"
+                  }`}
+                >
                   {label}
                 </span>
               </a>
@@ -145,13 +159,21 @@ export default function SiteNav() {
         </nav>
 
         {/* Footer pill — kickoff date */}
-        <div className="flex items-center gap-2 bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl px-3 py-2.5 pointer-events-auto">
+        <div
+          className={`flex items-center bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl py-2.5 pointer-events-auto transition-all duration-300 ${
+            isModalOpen ? "px-3 gap-0 justify-center" : "px-3 gap-2"
+          }`}
+        >
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-          <div>
-            <p className="text-gray-300 text-xs font-semibold leading-none">
+          <div
+            className={`overflow-hidden transition-all duration-300 ${
+              isModalOpen ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            }`}
+          >
+            <p className="text-gray-300 text-xs font-semibold leading-none whitespace-nowrap">
               Jun 11, 2026
             </p>
-            <p className="text-gray-600 text-[10px] mt-1">Kickoff</p>
+            <p className="text-gray-600 text-[10px] mt-1 whitespace-nowrap">Kickoff</p>
           </div>
         </div>
       </aside>

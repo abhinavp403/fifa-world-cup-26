@@ -1256,7 +1256,7 @@ export default function WorldCupDashboard() {
 
   return (
     <main className="bg-[#020d1c] min-h-screen bg-aurora">
-      <SiteNav />
+      <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
         <Hero />
         <StatStrip />
