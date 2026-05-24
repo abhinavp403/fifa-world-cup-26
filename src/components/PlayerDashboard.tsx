@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { X, ChevronUp, ChevronDown } from "lucide-react";
+import { X, ChevronUp, ChevronDown, ArrowLeft } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
 import { SQUADS, ZERO_STATS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
@@ -105,15 +105,21 @@ function PlayerRow({
   statDefs,
   sortKey,
   teamColor,
+  onClick,
 }: {
   player:    SquadPlayer;
   statDefs:  StatDef[];
   sortKey:   keyof PlayerStats;
   teamColor: string;
+  onClick:   () => void;
 }) {
   return (
     <div
-      className="grid items-center gap-x-4 px-4 py-4 border-b border-[#0d2540]/60 last:border-0 hover:bg-white/[0.025] transition-colors"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className="grid items-center gap-x-4 px-4 py-4 border-b border-[#0d2540]/60 last:border-0 hover:bg-white/[0.04] cursor-pointer transition-colors"
       style={{ gridTemplateColumns: statCols(statDefs.length) }}
     >
       {/* Photo + jersey number overlay */}
@@ -218,10 +224,12 @@ function PositionGroup({
   pos,
   players,
   teamColor,
+  onPlayerClick,
 }: {
-  pos:       string;
-  players:   SquadPlayer[];
-  teamColor: string;
+  pos:           string;
+  players:       SquadPlayer[];
+  teamColor:     string;
+  onPlayerClick: (p: SquadPlayer) => void;
 }) {
   const statDefs = POS_STAT_DEFS[pos] ?? [];
 
@@ -299,9 +307,270 @@ function PositionGroup({
             statDefs={statDefs}
             sortKey={sort.col}
             teamColor={teamColor}
+            onClick={() => onPlayerClick(p)}
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Player detail view
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StatBlock({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label:   string;
+  value:   string | number;
+  sub?:    string;
+  accent?: string;
+}) {
+  return (
+    <div className="bg-[#0a1e35] border border-[#0d2540] rounded-xl p-3 text-center">
+      <p className="text-[9px] font-bold tracking-widest text-gray-600 uppercase mb-1.5 leading-tight">
+        {label}
+      </p>
+      <p
+        className="text-2xl font-black tabular-nums leading-none"
+        style={{ color: accent ?? "#e2e8f0" }}
+      >
+        {value}
+      </p>
+      {sub && (
+        <p className="text-gray-600 text-[9px] mt-1.5 leading-tight">{sub}</p>
+      )}
+    </div>
+  );
+}
+
+function StatSection({
+  title,
+  color,
+  children,
+}: {
+  title:    string;
+  color:    string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="w-1 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+        <p className="text-[10px] font-black tracking-widest uppercase" style={{ color }}>
+          {title}
+        </p>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function PlayerDetailView({
+  player,
+  teamColor,
+  onBack,
+}: {
+  player:    SquadPlayer;
+  teamColor: string;
+  onBack:    () => void;
+}) {
+  const s   = player.stats ?? ZERO_STATS;
+  const pos = player.position;
+  const subApps       = Math.max(0, s.appearances - s.started);
+  const shootingAcc   = s.shots > 0
+    ? Math.round((s.shotsOnTarget / s.shots) * 100) : null;
+  const saveAcc       = (s.saves + s.goalsConceded) > 0
+    ? Math.round((s.saves / (s.saves + s.goalsConceded)) * 100) : null;
+  const dribbleSucc   = s.dribbleAttempts > 0
+    ? Math.round((s.dribbles / s.dribbleAttempts) * 100) : null;
+  const duelWinPct    = s.duelsTotal > 0
+    ? Math.round((s.duelsWon / s.duelsTotal) * 100) : null;
+  const penConversion = (s.penaltyScored + s.penaltyMissed) > 0
+    ? Math.round((s.penaltyScored / (s.penaltyScored + s.penaltyMissed)) * 100) : null;
+  const { text: rtgText, cls: rtgCls } = ratingBadge(s.rating);
+
+  return (
+    <div className="px-4 sm:px-8 py-6">
+
+      {/* ── Navigation bar ── */}
+      <div className="mb-7">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm font-semibold group"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          Back to squad
+        </button>
+      </div>
+
+      {/* ── Player hero ── */}
+      <div
+        className="flex items-start gap-5 mb-8 pb-7 border-b"
+        style={{ borderBottomColor: teamColor + "33" }}
+      >
+        <div className="relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24">
+          {player.photo ? (
+            <Image
+              src={player.photo}
+              alt={player.name}
+              fill
+              sizes="96px"
+              className="object-cover object-top rounded-2xl"
+              style={{ backgroundColor: teamColor + "22" }}
+              unoptimized
+            />
+          ) : (
+            <div
+              className="w-full h-full rounded-2xl flex items-center justify-center text-2xl font-black text-white"
+              style={{ backgroundColor: teamColor + "55", border: `2px solid ${teamColor}44` }}
+            >
+              {player.number}
+            </div>
+          )}
+          <span
+            className="absolute -bottom-1 -right-1 text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full leading-none shadow-lg"
+            style={{ backgroundColor: teamColor, color: "#020d1c" }}
+          >
+            {player.number}
+          </span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-3 flex-wrap">
+            <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
+              {player.name}
+            </h2>
+            {player.captain && (
+              <span
+                className="text-[9px] font-black px-1.5 py-0.5 rounded tracking-wider mt-1.5 flex-shrink-0"
+                style={{ color: teamColor, backgroundColor: teamColor + "22", border: `1px solid ${teamColor}44` }}
+              >
+                CAPTAIN
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-2 flex-wrap text-sm">
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded"
+              style={{ color: teamColor, backgroundColor: teamColor + "22" }}
+            >
+              {pos}
+            </span>
+            <span className="text-gray-400">
+              Age <span className="text-gray-200 font-semibold">{player.age}</span>
+            </span>
+            <span className="text-gray-500">·</span>
+            <span className="text-gray-400">
+              <span className="text-gray-200 font-semibold">{player.club}</span>
+            </span>
+          </div>
+          <div className="mt-3">
+            <span className={`text-sm font-bold px-3 py-1 rounded-lg ${rtgCls}`}>
+              {s.rating > 0 ? `${rtgText} avg rating` : "No rating yet"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Overview ── */}
+      <StatSection title="Overview" color={teamColor}>
+        <StatBlock
+          label="Appearances"
+          value={s.appearances}
+          sub={`${s.started} started · ${subApps} sub`}
+        />
+        <StatBlock label="Minutes" value={s.minutesPlayed} sub="played" />
+      </StatSection>
+
+      {/* ── Goalkeeping ── */}
+      {pos === "GK" && (
+        <StatSection title="Goalkeeping" color={teamColor}>
+          <StatBlock label="Saves"           value={s.saves}         />
+          <StatBlock label="Clean Sheets"    value={s.cleanSheets}   />
+          <StatBlock label="Goals Conceded"  value={s.goalsConceded} />
+          <StatBlock label="Penalties Saved" value={s.penaltySaved}  />
+          <StatBlock label="Save %"          value={saveAcc !== null ? `${saveAcc}%` : "—"} />
+        </StatSection>
+      )}
+
+      {/* ── Defensive ── */}
+      {(pos === "DEF" || pos === "MID") && (
+        <StatSection title="Defensive" color={teamColor}>
+          <StatBlock label="Tackles"       value={s.tackles}       />
+          <StatBlock label="Interceptions" value={s.interceptions} />
+          <StatBlock label="Duels Won"     value={s.duelsWon}      />
+          <StatBlock label="Duels Total"   value={s.duelsTotal}    />
+          <StatBlock label="Duel Win %"    value={duelWinPct !== null ? `${duelWinPct}%` : "—"} />
+          <StatBlock label="Dribbles"      value={s.dribbles}      />
+          <StatBlock label="Drb Attempts"  value={s.dribbleAttempts} />
+          <StatBlock label="Dribble Succ %" value={dribbleSucc !== null ? `${dribbleSucc}%` : "—"} />
+        </StatSection>
+      )}
+
+      {/* ── Dribbling & Duels (FWD) ── */}
+      {pos === "FWD" && (
+        <StatSection title="Dribbling & Duels" color={teamColor}>
+          <StatBlock label="Dribbles"       value={s.dribbles}      />
+          <StatBlock label="Drb Attempts"   value={s.dribbleAttempts} />
+          <StatBlock label="Dribble Succ %" value={dribbleSucc !== null ? `${dribbleSucc}%` : "—"} />
+          <StatBlock label="Duels Won"      value={s.duelsWon}      />
+          <StatBlock label="Duels Total"    value={s.duelsTotal}    />
+          <StatBlock label="Duel Win %"     value={duelWinPct !== null ? `${duelWinPct}%` : "—"} />
+        </StatSection>
+      )}
+
+      {/* ── Passing (outfield) ── */}
+      {pos !== "GK" && (
+        <StatSection title="Passing" color={teamColor}>
+          <StatBlock label="Total Passes" value={s.passes} />
+          <StatBlock
+            label="Pass Acc %"
+            value={s.passAccuracy > 0 ? `${s.passAccuracy}%` : "—"}
+          />
+        </StatSection>
+      )}
+
+      {/* ── Attacking (outfield) ── */}
+      {pos !== "GK" && (
+        <StatSection title="Attacking" color={teamColor}>
+          <StatBlock label="Goals"   value={s.goals}   accent={s.goals > 0 ? "#4ade80" : undefined} />
+          <StatBlock label="Assists" value={s.assists} accent={s.assists > 0 ? "#60a5fa" : undefined} />
+          <StatBlock label="Shots"          value={s.shots}         />
+          <StatBlock label="On Target"      value={s.shotsOnTarget} />
+          <StatBlock label="Shooting Acc %" value={shootingAcc !== null ? `${shootingAcc}%` : "—"} />
+          <StatBlock label="Key Passes"     value={s.keyPasses}     />
+          {(pos === "MID" || pos === "FWD") && (
+            <StatBlock label="Offsides" value={s.offsides} />
+          )}
+        </StatSection>
+      )}
+
+      {/* ── Penalties (MID + FWD) ── */}
+      {(pos === "MID" || pos === "FWD") && (
+        <StatSection title="Penalties" color={teamColor}>
+          <StatBlock label="Scored"       value={s.penaltyScored}  accent={s.penaltyScored > 0 ? "#4ade80" : undefined} />
+          <StatBlock label="Missed"       value={s.penaltyMissed}  accent={s.penaltyMissed > 0 ? "#f43f5e" : undefined} />
+          <StatBlock label="Won"          value={s.penaltyWon}     />
+          <StatBlock label="Conversion %" value={penConversion !== null ? `${penConversion}%` : "—"} />
+        </StatSection>
+      )}
+
+      {/* ── Discipline (all) ── */}
+      <StatSection title="Discipline" color={teamColor}>
+        <StatBlock label="Fouls Committed" value={s.foulsCommitted} accent={s.foulsCommitted > 0 ? "#fb923c" : undefined} />
+        <StatBlock label="Fouls Drawn"     value={s.foulsDrawn}     />
+        <StatBlock label="Yellow Cards"    value={s.yellowCards}    accent={s.yellowCards > 0 ? "#fbbf24" : undefined} />
+        <StatBlock label="Red Cards"       value={s.redCards}       accent={s.redCards > 0 ? "#f43f5e" : undefined} />
+      </StatSection>
+
     </div>
   );
 }
@@ -339,11 +608,31 @@ export default function PlayerDashboard({
   teamCode: string | null;
   onClose:  () => void;
 }) {
+  const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset player selection whenever a different team is opened
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    setSelectedPlayer(null);
+  }, [teamCode]);
+
+  // Scroll modal to top whenever the view changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [selectedPlayer]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (selectedPlayer) setSelectedPlayer(null);
+        else onClose();
+      }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, selectedPlayer]);
 
   const squad = teamCode ? SQUADS[teamCode]                            : null;
   const team  = teamCode ? ALL_TEAMS.find((t) => t.code === teamCode) : null;
@@ -373,6 +662,7 @@ export default function PlayerDashboard({
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
       <motion.div
+        ref={scrollContainerRef}
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
@@ -400,6 +690,16 @@ export default function PlayerDashboard({
       <div className="flex items-center justify-center py-24 text-gray-500 text-sm">
         Squad not yet announced.
       </div>,
+    );
+  }
+
+  if (selectedPlayer) {
+    return shell(
+      <PlayerDetailView
+        player={selectedPlayer}
+        teamColor={color}
+        onBack={() => setSelectedPlayer(null)}
+      />,
     );
   }
 
@@ -453,6 +753,7 @@ export default function PlayerDashboard({
           pos={pos}
           players={byPos(pos)}
           teamColor={color}
+          onPlayerClick={setSelectedPlayer}
         />
       ))}
 

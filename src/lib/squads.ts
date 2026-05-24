@@ -4,26 +4,46 @@
 
 export type PlayerStats = {
   appearances:    number;
+  started:        number; // matches in starting XI
   minutesPlayed:  number;
   goals:          number;
   assists:        number;
   shots:          number;
   shotsOnTarget:  number;
   keyPasses:      number;
-  passes:         number;
-  dribbles:       number;
-  tackles:        number;
-  interceptions:  number;
-  saves:          number;
-  cleanSheets:    number;
-  goalsConceded:  number;
+  passes:          number;
+  passAccuracy:    number; // percentage 0-100 (0 = no data)
+  dribbles:        number;
+  dribbleAttempts: number;
+  tackles:         number;
+  interceptions:   number;
+  duelsWon:        number;
+  duelsTotal:      number;
+  foulsCommitted:  number;
+  foulsDrawn:      number;
+  offsides:        number;
+  penaltyScored:   number;
+  penaltyMissed:   number;
+  penaltyWon:      number;
+  penaltySaved:    number; // GK only
+  yellowCards:     number;
+  redCards:        number;
+  saves:           number;
+  cleanSheets:     number;
+  goalsConceded:   number;
+  rating:          number; // average match rating (0 = no data)
 };
 
 export const ZERO_STATS: PlayerStats = {
-  appearances: 0, minutesPlayed: 0, goals: 0, assists: 0,
-  shots: 0, shotsOnTarget: 0, keyPasses: 0, passes: 0,
-  dribbles: 0, tackles: 0, interceptions: 0,
+  appearances: 0, started: 0, minutesPlayed: 0, goals: 0, assists: 0,
+  shots: 0, shotsOnTarget: 0, keyPasses: 0, passes: 0, passAccuracy: 0,
+  dribbles: 0, dribbleAttempts: 0,
+  tackles: 0, interceptions: 0, duelsWon: 0, duelsTotal: 0,
+  foulsCommitted: 0, foulsDrawn: 0, offsides: 0,
+  penaltyScored: 0, penaltyMissed: 0, penaltyWon: 0, penaltySaved: 0,
+  yellowCards: 0, redCards: 0,
   saves: 0, cleanSheets: 0, goalsConceded: 0,
+  rating: 0,
 };
 
 export type SquadPlayer = {
@@ -374,6 +394,303 @@ export const SQUADS: Record<string, Squad> = {
       { name: "Jesse Randall",     number: 24, position: "FWD", club: "Auckland FC",           age: 23, photo: s(1002506) },
       { name: "Ben Waine",         number: 25, position: "FWD", club: "Port Vale",             age: 24, photo: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Ben_Waine.jpg/330px-Ben_Waine.jpg" },
       { name: "Chris Wood",        number: 26, position: "FWD", club: "Nottingham Forest",     age: 34, captain: true, photo: s(50480) },
+    ],
+  },
+
+  // ─── Brazil ───────────────────────────────────────────────────────────────
+  BRA: {
+    coach: "Carlo Ancelotti",
+    players: [
+      { name: "Alisson Becker",     number: 1,  position: "GK",  club: "Liverpool",             age: 33 },
+      { name: "Ederson",            number: 12, position: "GK",  club: "Fenerbahçe",            age: 32 },
+      { name: "Weverton",           number: 23, position: "GK",  club: "Grêmio",                age: 38 },
+      { name: "Danilo",             number: 2,  position: "DEF", club: "Flamengo",              age: 34 },
+      { name: "Marquinhos",         number: 3,  position: "DEF", club: "Paris Saint-Germain",   age: 32, captain: true },
+      { name: "Gabriel Magalhães",  number: 4,  position: "DEF", club: "Arsenal",               age: 28 },
+      { name: "Léo Pereira",        number: 5,  position: "DEF", club: "Flamengo",              age: 30 },
+      { name: "Alex Sandro",        number: 6,  position: "DEF", club: "Flamengo",              age: 35 },
+      { name: "Bremer",             number: 7,  position: "DEF", club: "Juventus",              age: 29 },
+      { name: "Roger Ibañez",       number: 8,  position: "DEF", club: "Al-Ahli",               age: 27 },
+      { name: "Douglas Santos",     number: 9,  position: "DEF", club: "Zenit St. Petersburg",  age: 32 },
+      { name: "Wesley",             number: 10, position: "DEF", club: "AS Roma",               age: 22 },
+      { name: "Bruno Guimarães",    number: 11, position: "MID", club: "Newcastle United",      age: 28 },
+      { name: "Casemiro",           number: 13, position: "MID", club: "Manchester United",     age: 34 },
+      { name: "Lucas Paquetá",      number: 14, position: "MID", club: "Flamengo",              age: 28 },
+      { name: "Fabinho",            number: 15, position: "MID", club: "Al-Ittihad",            age: 32 },
+      { name: "Danilo Santos",      number: 16, position: "MID", club: "Botafogo",              age: 25 },
+      { name: "Vinicius Jr",        number: 17, position: "FWD", club: "Real Madrid",           age: 25 },
+      { name: "Raphinha",           number: 18, position: "FWD", club: "FC Barcelona",          age: 29 },
+      { name: "Neymar",             number: 19, position: "FWD", club: "Santos",                age: 34 },
+      { name: "Matheus Cunha",      number: 20, position: "FWD", club: "Manchester United",     age: 26 },
+      { name: "Gabriel Martinelli", number: 21, position: "FWD", club: "Arsenal",               age: 24 },
+      { name: "Igor Thiago",        number: 22, position: "FWD", club: "Brentford",             age: 24 },
+      { name: "Endrick",            number: 24, position: "FWD", club: "Real Madrid",           age: 19 },
+      { name: "Luiz Henrique",      number: 25, position: "FWD", club: "Zenit St. Petersburg",  age: 25 },
+      { name: "Rayan",              number: 26, position: "FWD", club: "Bournemouth",           age: 19 },
+    ],
+  },
+
+  // ─── Croatia ──────────────────────────────────────────────────────────────
+  CRO: {
+    coach: "Zlatko Dalić",
+    players: [
+      { name: "Dominik Livaković",  number: 1,  position: "GK",  club: "Dinamo Zagreb",        age: 31 },
+      { name: "Dominik Kotarski",   number: 12, position: "GK",  club: "FC Copenhagen",        age: 26 },
+      { name: "Ivor Pandur",        number: 23, position: "GK",  club: "Hull City",            age: 26 },
+      { name: "Joško Gvardiol",     number: 2,  position: "DEF", club: "Manchester City",      age: 24 },
+      { name: "Duje Ćaleta-Car",    number: 3,  position: "DEF", club: "Real Sociedad",        age: 29 },
+      { name: "Josip Šutalo",       number: 4,  position: "DEF", club: "Ajax",                 age: 26 },
+      { name: "Josip Stanišić",     number: 5,  position: "DEF", club: "Bayern Munich",        age: 26 },
+      { name: "Marin Pongračić",    number: 6,  position: "DEF", club: "Fiorentina",           age: 28 },
+      { name: "Martin Erlić",       number: 7,  position: "DEF", club: "FC Midtjylland",       age: 28 },
+      { name: "Luka Vušković",      number: 8,  position: "DEF", club: "Hamburger SV",         age: 19 },
+      { name: "Luka Modrić",        number: 9,  position: "MID", club: "AC Milan",             age: 40, captain: true },
+      { name: "Mateo Kovačić",      number: 10, position: "MID", club: "Manchester City",      age: 32 },
+      { name: "Mario Pašalić",      number: 11, position: "MID", club: "Atalanta",             age: 31 },
+      { name: "Nikola Vlašić",      number: 13, position: "MID", club: "Torino",               age: 28 },
+      { name: "Luka Sučić",         number: 14, position: "MID", club: "Real Sociedad",        age: 23 },
+      { name: "Martin Baturina",    number: 15, position: "MID", club: "Como",                 age: 23 },
+      { name: "Kristijan Jakić",    number: 16, position: "MID", club: "Augsburg",             age: 29 },
+      { name: "Petar Sučić",        number: 17, position: "MID", club: "Inter Milan",          age: 22 },
+      { name: "Nikola Moro",        number: 18, position: "MID", club: "Bologna",              age: 28 },
+      { name: "Toni Fruk",          number: 19, position: "MID", club: "HNK Rijeka",           age: 25 },
+      { name: "Ivan Perišić",       number: 20, position: "FWD", club: "PSV Eindhoven",        age: 37 },
+      { name: "Andrej Kramarić",    number: 21, position: "FWD", club: "Hoffenheim",           age: 34 },
+      { name: "Ante Budimir",       number: 22, position: "FWD", club: "Osasuna",              age: 34 },
+      { name: "Marco Pašalić",      number: 24, position: "FWD", club: "Orlando City",         age: 25 },
+      { name: "Petar Musa",         number: 25, position: "FWD", club: "FC Dallas",            age: 28 },
+      { name: "Igor Matanović",     number: 26, position: "FWD", club: "SC Freiburg",          age: 23 },
+    ],
+  },
+
+  // ─── Austria ──────────────────────────────────────────────────────────────
+  AUT: {
+    coach: "Ralf Rangnick",
+    players: [
+      { name: "Alexander Schlager",   number: 1,  position: "GK",  club: "Red Bull Salzburg",  age: 30 },
+      { name: "Florian Wiegele",      number: 12, position: "GK",  club: "Viktoria Plzeň",     age: 25 },
+      { name: "Patrick Pentz",        number: 13, position: "GK",  club: "Brøndby IF",         age: 29 },
+      { name: "David Affengruber",    number: 2,  position: "DEF", club: "Elche",              age: 25 },
+      { name: "Kevin Danso",          number: 3,  position: "DEF", club: "Tottenham Hotspur",  age: 27 },
+      { name: "Stefan Posch",         number: 5,  position: "DEF", club: "Mainz 05",           age: 29 },
+      { name: "David Alaba",          number: 8,  position: "DEF", club: "Real Madrid",        age: 33, captain: true },
+      { name: "Philipp Lienhart",     number: 15, position: "DEF", club: "SC Freiburg",        age: 29 },
+      { name: "Phillipp Mwene",       number: 16, position: "DEF", club: "Mainz 05",           age: 32 },
+      { name: "Alexander Prass",      number: 22, position: "DEF", club: "TSG Hoffenheim",     age: 24 },
+      { name: "Marco Friedl",         number: 23, position: "DEF", club: "Werder Bremen",      age: 28 },
+      { name: "Michael Svoboda",      number: 25, position: "DEF", club: "Venezia",            age: 27 },
+      { name: "Xaver Schlager",       number: 4,  position: "MID", club: "RB Leipzig",         age: 28 },
+      { name: "Nicolas Seiwald",      number: 6,  position: "MID", club: "RB Leipzig",         age: 25 },
+      { name: "Marcel Sabitzer",      number: 9,  position: "MID", club: "Borussia Dortmund",  age: 32 },
+      { name: "Florian Grillitsch",   number: 10, position: "MID", club: "SC Braga",           age: 30 },
+      { name: "Carney Chukwuemeka",   number: 17, position: "MID", club: "Borussia Dortmund",  age: 22 },
+      { name: "Romano Schmid",        number: 18, position: "MID", club: "Werder Bremen",      age: 26 },
+      { name: "Christoph Baumgartner",number: 19, position: "MID", club: "RB Leipzig",         age: 26 },
+      { name: "Konrad Laimer",        number: 20, position: "MID", club: "Bayern Munich",      age: 28 },
+      { name: "Patrick Wimmer",       number: 21, position: "MID", club: "VfL Wolfsburg",      age: 24 },
+      { name: "Paul Wanner",          number: 24, position: "MID", club: "PSV Eindhoven",      age: 20 },
+      { name: "Alessandro Schöpf",    number: 26, position: "MID", club: "Wolfsberger AC",     age: 32 },
+      { name: "Marko Arnautović",     number: 7,  position: "FWD", club: "Red Star Belgrade",  age: 37 },
+      { name: "Michael Gregoritsch",  number: 11, position: "FWD", club: "FC Augsburg",        age: 32 },
+      { name: "Saša Kalajdžić",       number: 14, position: "FWD", club: "LASK Linz",          age: 28 },
+    ],
+  },
+
+  // ─── Portugal ─────────────────────────────────────────────────────────────
+  POR: {
+    coach: "Roberto Martínez",
+    players: [
+      { name: "Diogo Costa",         number: 1,  position: "GK",  club: "FC Porto",            age: 26 },
+      { name: "José Sá",             number: 12, position: "GK",  club: "Wolverhampton Wanderers", age: 33 },
+      { name: "Rui Silva",           number: 23, position: "GK",  club: "Sporting CP",         age: 32 },
+      { name: "Rúben Dias",          number: 2,  position: "DEF", club: "Manchester City",     age: 29 },
+      { name: "João Cancelo",        number: 3,  position: "DEF", club: "FC Barcelona",        age: 31 },
+      { name: "Diogo Dalot",         number: 4,  position: "DEF", club: "Manchester United",   age: 27 },
+      { name: "Nuno Mendes",         number: 5,  position: "DEF", club: "Paris Saint-Germain", age: 23 },
+      { name: "Gonçalo Inácio",      number: 6,  position: "DEF", club: "Sporting CP",         age: 24 },
+      { name: "Nélson Semedo",       number: 7,  position: "DEF", club: "Fenerbahçe",          age: 32 },
+      { name: "Matheus Nunes",       number: 9,  position: "DEF", club: "Manchester City",     age: 27 },
+      { name: "Renato Veiga",        number: 10, position: "DEF", club: "Villarreal",          age: 22 },
+      { name: "Tomás Araújo",        number: 11, position: "DEF", club: "Benfica",             age: 24 },
+      { name: "Bruno Fernandes",     number: 8,  position: "MID", club: "Manchester United",   age: 31 },
+      { name: "Bernardo Silva",      number: 13, position: "MID", club: "Manchester City",     age: 31 },
+      { name: "João Neves",          number: 14, position: "MID", club: "Paris Saint-Germain", age: 21 },
+      { name: "Vitinha",             number: 15, position: "MID", club: "Paris Saint-Germain", age: 26 },
+      { name: "Rúben Neves",         number: 16, position: "MID", club: "Al Hilal",            age: 29 },
+      { name: "Samú Costa",          number: 17, position: "MID", club: "RCD Mallorca",        age: 25 },
+      { name: "Cristiano Ronaldo",   number: 18, position: "FWD", club: "Al Nassr",            age: 41, captain: true },
+      { name: "Rafael Leão",         number: 19, position: "FWD", club: "AC Milan",            age: 26 },
+      { name: "João Félix",          number: 20, position: "FWD", club: "Al Nassr",            age: 26 },
+      { name: "Gonçalo Ramos",       number: 21, position: "FWD", club: "Paris Saint-Germain", age: 24 },
+      { name: "Pedro Neto",          number: 22, position: "FWD", club: "Chelsea",             age: 26 },
+      { name: "Francisco Conceição", number: 24, position: "FWD", club: "Juventus",            age: 23 },
+      { name: "Gonçalo Guedes",      number: 25, position: "FWD", club: "Real Sociedad",       age: 29 },
+      { name: "Francisco Trincão",   number: 26, position: "FWD", club: "Sporting CP",         age: 26 },
+    ],
+  },
+
+  // ─── Cape Verde ───────────────────────────────────────────────────────────
+  CPV: {
+    coach: "Pedro Brito (Bubista)",
+    players: [
+      { name: "Vozinha",             number: 1,  position: "GK",  club: "Chaves",              age: 39 },
+      { name: "Márcio Rosa",         number: 12, position: "GK",  club: "Montana",             age: 29 },
+      { name: "CJ dos Santos",       number: 23, position: "GK",  club: "San Diego FC",        age: 25 },
+      { name: "Steven Moreira",      number: 2,  position: "DEF", club: "Columbus Crew",       age: 31 },
+      { name: "Wagner Pina",         number: 3,  position: "DEF", club: "Trabzonspor",         age: 23 },
+      { name: "João Paulo Fernandes",number: 4,  position: "DEF", club: "FCSB",                age: 30 },
+      { name: "Sidny Lopes Cabral",  number: 5,  position: "DEF", club: "Benfica",             age: 23 },
+      { name: "Logan Costa",         number: 6,  position: "DEF", club: "Villarreal",          age: 25 },
+      { name: "Roberto Lopes",       number: 7,  position: "DEF", club: "Shamrock Rovers",     age: 33 },
+      { name: "Kelvin Pires",        number: 8,  position: "DEF", club: "SJK Seinäjoki",       age: 25 },
+      { name: "Stopira",             number: 9,  position: "DEF", club: "Torreense",           age: 38 },
+      { name: "Diney",               number: 10, position: "DEF", club: "Al-Bataeh",           age: 31 },
+      { name: "Jamiro Monteiro",     number: 11, position: "MID", club: "PEC Zwolle",          age: 32 },
+      { name: "Telmo Arcanjo",       number: 13, position: "MID", club: "Vitória Guimarães",   age: 24 },
+      { name: "Yannick Semedo",      number: 14, position: "MID", club: "Farense",             age: 30 },
+      { name: "Laros Duarte",        number: 15, position: "MID", club: "Puskás Akadémia",     age: 29 },
+      { name: "Deroy Duarte",        number: 16, position: "MID", club: "Ludogorets",          age: 26 },
+      { name: "Kevin Pina",          number: 17, position: "MID", club: "Krasnodar",           age: 29 },
+      { name: "Ryan Mendes",         number: 18, position: "FWD", club: "Iğdır FK",            age: 36, captain: true },
+      { name: "Willy Semedo",        number: 19, position: "FWD", club: "Omonia Nicosia",      age: 32 },
+      { name: "Garry Rodrigues",     number: 20, position: "FWD", club: "Apollon Limassol",    age: 35 },
+      { name: "Jovane Cabral",       number: 21, position: "FWD", club: "Estrela Amadora",     age: 27 },
+      { name: "Nuno da Costa",       number: 22, position: "FWD", club: "Başakşehir",          age: 35 },
+      { name: "Dailon Livramento",   number: 24, position: "FWD", club: "Casa Pia",            age: 25 },
+      { name: "Gilson Benchimol",    number: 25, position: "FWD", club: "Akron Togliatti",     age: 24 },
+      { name: "Hélio Varela",        number: 26, position: "FWD", club: "Maccabi Tel Aviv",    age: 23 },
+    ],
+  },
+
+  // ─── Curaçao ──────────────────────────────────────────────────────────────
+  CUW: {
+    coach: "Dick Advocaat",
+    players: [
+      { name: "Tyrick Bodak",       number: 1,  position: "GK",  club: "SC Telstar",          age: 24 },
+      { name: "Trevor Doornbusch",  number: 12, position: "GK",  club: "VVV-Venlo",           age: 26 },
+      { name: "Eloy Room",          number: 23, position: "GK",  club: "Miami FC",            age: 37 },
+      { name: "Riechedly Bazoer",   number: 2,  position: "DEF", club: "Konyaspor",           age: 29 },
+      { name: "Joshua Brenet",      number: 3,  position: "DEF", club: "Kayserispor",         age: 32 },
+      { name: "Roshon van Eijma",   number: 4,  position: "DEF", club: "RKC Waalwijk",        age: 27 },
+      { name: "Sherel Floranus",    number: 5,  position: "DEF", club: "PEC Zwolle",          age: 27 },
+      { name: "Deveron Fonville",   number: 6,  position: "DEF", club: "NEC Nijmegen",        age: 22 },
+      { name: "Juriën Gaari",       number: 7,  position: "DEF", club: "Abha Club",           age: 32 },
+      { name: "Armando Obispo",     number: 8,  position: "DEF", club: "PSV Eindhoven",       age: 27 },
+      { name: "Shurandy Sambo",     number: 9,  position: "DEF", club: "Sparta Rotterdam",    age: 24 },
+      { name: "Juninho Bacuna",     number: 10, position: "MID", club: "FC Volendam",         age: 28 },
+      { name: "Leandro Bacuna",     number: 11, position: "MID", club: "Iğdır FK",            age: 34, captain: true },
+      { name: "Livano Comenencia",  number: 13, position: "MID", club: "FC Zürich",           age: 22 },
+      { name: "Kevin Felida",       number: 14, position: "MID", club: "FC Den Bosch",        age: 26 },
+      { name: "Ar'Jany Martha",     number: 15, position: "MID", club: "Rotherham United",    age: 22 },
+      { name: "Tyrese Noslin",      number: 16, position: "MID", club: "SC Telstar",          age: 23 },
+      { name: "Godfried Roemeratoe",number: 17, position: "MID", club: "RKC Waalwijk",        age: 26 },
+      { name: "Jeremy Antonisse",   number: 18, position: "FWD", club: "AE Kifisia",          age: 24 },
+      { name: "Sontje Hansen",      number: 19, position: "FWD", club: "Middlesbrough",       age: 24 },
+      { name: "Tahith Chong",       number: 20, position: "FWD", club: "Sheffield United",    age: 26 },
+      { name: "Brandley Kuwas",     number: 21, position: "FWD", club: "FC Volendam",         age: 33 },
+      { name: "Gervane Kastaneer",  number: 22, position: "FWD", club: "Terengganu FC",       age: 30 },
+      { name: "Jürgen Locadia",     number: 24, position: "FWD", club: "Miami FC",            age: 32 },
+      { name: "Jearl Margaritha",   number: 25, position: "FWD", club: "SK Beveren",          age: 26 },
+      { name: "Kenji Gorré",        number: 26, position: "FWD", club: "Maccabi Haifa",       age: 31 },
+    ],
+  },
+
+  // ─── DR Congo ─────────────────────────────────────────────────────────────
+  COD: {
+    coach: "Sébastien Desabre",
+    players: [
+      { name: "Matthieu Epolo",     number: 1,  position: "GK",  club: "Standard Liège",      age: 21 },
+      { name: "Timothy Fayulu",     number: 12, position: "GK",  club: "FC Noah",             age: 26 },
+      { name: "Lionel Mpasi",       number: 23, position: "GK",  club: "Le Havre",            age: 31 },
+      { name: "Dylan Batubinsika",  number: 2,  position: "DEF", club: "AEL Larisa",          age: 30 },
+      { name: "Rocky Bushiri",      number: 3,  position: "DEF", club: "Hibernian",           age: 26 },
+      { name: "Gédéon Kalulu",      number: 4,  position: "DEF", club: "Aris Limassol",       age: 28 },
+      { name: "Steve Kapuadi",      number: 5,  position: "DEF", club: "Widzew Łódź",         age: 28 },
+      { name: "Joris Kayembe",      number: 6,  position: "DEF", club: "KRC Genk",            age: 31 },
+      { name: "Arthur Masuaku",     number: 7,  position: "DEF", club: "RC Lens",             age: 32 },
+      { name: "Chancel Mbemba",     number: 8,  position: "DEF", club: "Lille",               age: 31, captain: true },
+      { name: "Axel Tuanzebe",      number: 9,  position: "DEF", club: "Burnley",             age: 28 },
+      { name: "Aaron Wan-Bissaka",  number: 10, position: "DEF", club: "West Ham United",     age: 28 },
+      { name: "Théo Bongonda",      number: 11, position: "MID", club: "Spartak Moscow",      age: 30 },
+      { name: "Brian Cipenga",      number: 13, position: "MID", club: "CD Castellón",        age: 28 },
+      { name: "Meschack Elia",      number: 14, position: "MID", club: "Alanyaspor",          age: 28 },
+      { name: "Gaël Kakuta",        number: 15, position: "MID", club: "AEL Larisa",          age: 34 },
+      { name: "Edo Kayembe",        number: 16, position: "MID", club: "Watford",             age: 27 },
+      { name: "Nathanaël Mbuku",    number: 17, position: "MID", club: "Montpellier",         age: 24 },
+      { name: "Samuel Moutoussamy", number: 18, position: "MID", club: "Atromitos",           age: 29 },
+      { name: "Ngal'ayel Mukau",    number: 19, position: "MID", club: "Lille",               age: 21 },
+      { name: "Charles Pickel",     number: 20, position: "MID", club: "Espanyol",            age: 29 },
+      { name: "Noah Sadiki",        number: 21, position: "MID", club: "Sunderland",          age: 21 },
+      { name: "Cédric Bakambu",     number: 22, position: "FWD", club: "Real Betis",          age: 35 },
+      { name: "Simon Banza",        number: 24, position: "FWD", club: "Al Jazira",           age: 29 },
+      { name: "Fiston Mayele",      number: 25, position: "FWD", club: "Pyramids FC",         age: 31 },
+      { name: "Yoane Wissa",        number: 26, position: "FWD", club: "Newcastle United",    age: 29 },
+    ],
+  },
+
+  // ─── Switzerland ─────────────────────────────────────────────────────────
+  SUI: {
+    coach: "Murat Yakin",
+    players: [
+      { name: "Gregor Kobel",        number: 1,  position: "GK",  club: "Borussia Dortmund",        age: 28, photo: p("3vq4lh1694869963.png") },
+      { name: "Yvon Mvogo",          number: 12, position: "GK",  club: "Lorient",                  age: 31 },
+      { name: "Marvin Keller",       number: 23, position: "GK",  club: "Young Boys",               age: 23 },
+      { name: "Manuel Akanji",       number: 2,  position: "DEF", club: "Inter Milan",              age: 30, photo: p("e36gm81756408688.png") },
+      { name: "Nico Elvedi",         number: 3,  position: "DEF", club: "Borussia Mönchengladbach", age: 29, photo: p("p3qsf71694869863.png") },
+      { name: "Ricardo Rodríguez",   number: 4,  position: "DEF", club: "Real Betis",               age: 33, photo: p("73hgfe1694869923.png") },
+      { name: "Silvan Widmer",       number: 5,  position: "DEF", club: "Mainz 05",                 age: 33, photo: p("hb2t401694869941.png") },
+      { name: "Miro Muheim",         number: 6,  position: "DEF", club: "Hamburger SV",             age: 26, photo: p("sxh6p11730916507.png") },
+      { name: "Aurèle Amenda",       number: 7,  position: "DEF", club: "Eintracht Frankfurt",      age: 21 },
+      { name: "Eray Cömert",         number: 8,  position: "DEF", club: "Valencia",                 age: 26, photo: p("oqhb281694869839.png") },
+      { name: "Luca Jaquez",         number: 9,  position: "DEF", club: "VfB Stuttgart",            age: 21 },
+      { name: "Granit Xhaka",        number: 10, position: "MID", club: "Sunderland",               age: 33, captain: true, photo: p("t0ytnp1735302285.png") },
+      { name: "Johan Manzambi",      number: 11, position: "MID", club: "SC Freiburg",              age: 20 },
+      { name: "Remo Freuler",        number: 13, position: "MID", club: "Bologna",                  age: 34, photo: p("jt74ts1694869897.png") },
+      { name: "Denis Zakaria",       number: 14, position: "MID", club: "Monaco",                   age: 29, photo: p("x1rfxv1694869849.png") },
+      { name: "Ardon Jashari",       number: 15, position: "MID", club: "AC Milan",                 age: 23, photo: p("rbhbqk1730916466.png") },
+      { name: "Djibril Sow",         number: 16, position: "MID", club: "Sevilla",                  age: 29, photo: p("h7g3wr1694869877.png") },
+      { name: "Christian Fassnacht", number: 17, position: "MID", club: "Young Boys",               age: 32, photo: p("g0jq8s1694869857.png") },
+      { name: "Michel Aebischer",    number: 18, position: "MID", club: "Pisa",                     age: 29, photo: p("hbsj9l1756413079.png") },
+      { name: "Fabian Rieder",       number: 19, position: "MID", club: "FC Augsburg",              age: 24, photo: p("jwklbb1756413006.png") },
+      { name: "Rubén Vargas",        number: 20, position: "MID", club: "Sevilla",                  age: 27, photo: p("5ymb5r1694869933.png") },
+      { name: "Breel Embolo",        number: 21, position: "FWD", club: "Stade Rennais",            age: 29, photo: p("hkrymb1694869831.png") },
+      { name: "Noah Okafor",         number: 22, position: "FWD", club: "Leeds United",             age: 25, photo: p("jjf1mk1694869907.png") },
+      { name: "Dan Ndoye",           number: 24, position: "FWD", club: "Nottingham Forest",        age: 25, photo: p("gq2u2s1756413044.png") },
+      { name: "Zeki Amdouni",        number: 25, position: "FWD", club: "Burnley",                  age: 25, photo: p("4z8blk1756413119.png") },
+      { name: "Cedric Itten",        number: 26, position: "FWD", club: "Fortuna Düsseldorf",       age: 29, photo: p("7bwpge1694869811.png") },
+    ],
+  },
+
+  // ─── Scotland ─────────────────────────────────────────────────────────────
+  SCO: {
+    coach: "Steve Clarke",
+    players: [
+      { name: "Craig Gordon",       number: 1,  position: "GK",  club: "Heart of Midlothian", age: 43 },
+      { name: "Angus Gunn",         number: 12, position: "GK",  club: "Nottingham Forest",   age: 30 },
+      { name: "Liam Kelly",         number: 23, position: "GK",  club: "Rangers",             age: 30 },
+      { name: "Grant Hanley",       number: 2,  position: "DEF", club: "Hibernian",           age: 34 },
+      { name: "Jack Hendry",        number: 3,  position: "DEF", club: "Al-Ettifaq",          age: 31 },
+      { name: "Aaron Hickey",       number: 4,  position: "DEF", club: "Brentford",           age: 23 },
+      { name: "Dom Hyam",           number: 5,  position: "DEF", club: "Wrexham",             age: 30 },
+      { name: "Scott McKenna",      number: 6,  position: "DEF", club: "Dinamo Zagreb",       age: 29 },
+      { name: "Nathan Patterson",   number: 7,  position: "DEF", club: "Everton",             age: 24 },
+      { name: "Anthony Ralston",    number: 8,  position: "DEF", club: "Celtic",              age: 27 },
+      { name: "Andy Robertson",     number: 9,  position: "DEF", club: "Liverpool",           age: 32, captain: true },
+      { name: "John Souttar",       number: 10, position: "DEF", club: "Rangers",             age: 29 },
+      { name: "Kieran Tierney",     number: 11, position: "DEF", club: "Celtic",              age: 28 },
+      { name: "Ryan Christie",      number: 13, position: "MID", club: "Bournemouth",         age: 31 },
+      { name: "Findlay Curtis",     number: 14, position: "MID", club: "Rangers",             age: 19 },
+      { name: "Lewis Ferguson",     number: 15, position: "MID", club: "Bologna",             age: 26 },
+      { name: "Ben Gannon-Doak",    number: 16, position: "MID", club: "Bournemouth",         age: 20 },
+      { name: "Billy Gilmour",      number: 17, position: "MID", club: "Napoli",              age: 24 },
+      { name: "John McGinn",        number: 18, position: "MID", club: "Aston Villa",         age: 31 },
+      { name: "Kenny McLean",       number: 19, position: "MID", club: "Norwich City",        age: 34 },
+      { name: "Scott McTominay",    number: 20, position: "MID", club: "Napoli",              age: 29 },
+      { name: "Ché Adams",          number: 21, position: "FWD", club: "Torino",              age: 29 },
+      { name: "Lyndon Dykes",       number: 22, position: "FWD", club: "Charlton Athletic",   age: 30 },
+      { name: "George Hirst",       number: 24, position: "FWD", club: "Ipswich Town",        age: 27 },
+      { name: "Lawrence Shankland", number: 25, position: "FWD", club: "Heart of Midlothian", age: 30 },
+      { name: "Ross Stewart",       number: 26, position: "FWD", club: "Southampton",         age: 29 },
     ],
   },
 
