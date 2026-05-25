@@ -6,16 +6,16 @@ import {
   LayoutDashboard,
   Users,
   MapPin,
-  BarChart3,
   Swords,
+  User,
 } from "lucide-react";
 
 const NAV_LINKS = [
   { label: "Overview",   href: "#overview",  icon: LayoutDashboard },
   { label: "Groups",     href: "#groups",    icon: Users },
   { label: "Bracket",    href: "#bracket",   icon: Swords },
+  { label: "Players",    href: "#players",   icon: User },
   { label: "Host Cities", href: "#cities",   icon: MapPin },
-  { label: "Analytics",  href: "#analytics", icon: BarChart3 },
 ];
 
 export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean }) {

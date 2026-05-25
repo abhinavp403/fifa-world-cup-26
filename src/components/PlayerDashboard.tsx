@@ -376,10 +376,12 @@ function PlayerDetailView({
   player,
   teamColor,
   onBack,
+  hideBack = false,
 }: {
   player:    SquadPlayer;
   teamColor: string;
   onBack:    () => void;
+  hideBack?: boolean;
 }) {
   const s   = player.stats ?? ZERO_STATS;
   const pos = player.position;
@@ -400,16 +402,18 @@ function PlayerDetailView({
     <div className="px-4 sm:px-8 py-6">
 
       {/* ── Navigation bar ── */}
-      <div className="mb-7">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm font-semibold group"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
-          Back to squad
-        </button>
-      </div>
+      {!hideBack && (
+        <div className="mb-7">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm font-semibold group"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+            Back to squad
+          </button>
+        </div>
+      )}
 
       {/* ── Player hero ── */}
       <div
@@ -603,18 +607,27 @@ function SummaryCard({
 
 export default function PlayerDashboard({
   teamCode,
+  initialPlayerNumber,
   onClose,
 }: {
-  teamCode: string | null;
-  onClose:  () => void;
+  teamCode:             string | null;
+  initialPlayerNumber?: number | null;
+  onClose:              () => void;
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Reset player selection whenever a different team is opened
+  // Reset player selection when a different team is opened, or auto-select
+  // a specific player when one is requested (e.g. from the global search).
   useEffect(() => {
-    setSelectedPlayer(null);
-  }, [teamCode]);
+    if (teamCode && initialPlayerNumber != null) {
+      const squad = SQUADS[teamCode];
+      const match = squad?.players.find((p) => p.number === initialPlayerNumber);
+      setSelectedPlayer(match ?? null);
+    } else {
+      setSelectedPlayer(null);
+    }
+  }, [teamCode, initialPlayerNumber]);
 
   // Scroll modal to top whenever the view changes
   useEffect(() => {
@@ -626,13 +639,18 @@ export default function PlayerDashboard({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (selectedPlayer) setSelectedPlayer(null);
-        else onClose();
+        // If we entered directly into a player (no squad list to fall back to),
+        // close the whole modal in one step.
+        if (selectedPlayer && initialPlayerNumber == null) {
+          setSelectedPlayer(null);
+        } else {
+          onClose();
+        }
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose, selectedPlayer]);
+  }, [onClose, selectedPlayer, initialPlayerNumber]);
 
   const squad = teamCode ? SQUADS[teamCode]                            : null;
   const team  = teamCode ? ALL_TEAMS.find((t) => t.code === teamCode) : null;
@@ -699,6 +717,7 @@ export default function PlayerDashboard({
         player={selectedPlayer}
         teamColor={color}
         onBack={() => setSelectedPlayer(null)}
+        hideBack={initialPlayerNumber != null}
       />,
     );
   }
