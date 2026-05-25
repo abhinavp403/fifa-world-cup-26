@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 
 import { getMatches } from "@/lib/footballData";
-import { resolveBracket, resolveGroups } from "@/lib/resolver";
+import { resolveBracket, resolveChampion, resolveGroups } from "@/lib/resolver";
 
 // Re-cache every 5 minutes server-side; the underlying fetches also use
 // `next: { revalidate: 300 }`.
@@ -19,6 +19,7 @@ export async function GET() {
   // free-tier /standings endpoint doesn't break out by group.
   const groups = resolveGroups(matches);
   const { rounds, thirdPlace } = resolveBracket(matches);
+  const champion = resolveChampion(matches);
 
   const live = matches != null;
 
@@ -28,5 +29,6 @@ export async function GET() {
     groups,
     bracket: rounds,
     thirdPlace,
+    champion,
   });
 }

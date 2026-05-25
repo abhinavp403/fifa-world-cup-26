@@ -82,11 +82,213 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Today's matches card (shown during the tournament)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type TodayMatch = {
+  utcDate: string;
+  status:  string;
+  round:   string;            // "Group A", "Round of 32", "Final", etc.
+  home:    { code: string | null; flag: string; name: string };
+  away:    { code: string | null; flag: string; name: string };
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+function isToday(iso: string, now: Date) {
+  const d = new Date(iso);
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function formatKickoff(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function collectTodayMatches(data: WorldCupPayload | null, now: Date): TodayMatch[] {
+  if (!data) return [];
+  const out: TodayMatch[] = [];
+
+  // Group-stage matches
+  data.groups.forEach((g) => {
+    (g.matches ?? []).forEach((m) => {
+      if (!isToday(m.utcDate, now)) return;
+      out.push({
+        utcDate:   m.utcDate,
+        status:    m.status,
+        round:     `Group ${g.letter}`,
+        home:      { code: m.homeCode, flag: m.homeFlag, name: m.homeName },
+        away:      { code: m.awayCode, flag: m.awayFlag, name: m.awayName },
+        homeScore: m.homeScore,
+        awayScore: m.awayScore,
+      });
+    });
+  });
+
+  // Bracket matches
+  data.bracket.forEach((round) => {
+    round.matches.forEach((m) => {
+      if (!m.date || !isToday(m.date, now)) return;
+      out.push({
+        utcDate:   m.date,
+        status:    "",
+        round:     round.name,
+        home:      {
+          code: m.slot1.team?.code ?? null,
+          flag: m.slot1.team?.flag ?? "⚽",
+          name: m.slot1.team?.name ?? m.slot1.label,
+        },
+        away:      {
+          code: m.slot2.team?.code ?? null,
+          flag: m.slot2.team?.flag ?? "⚽",
+          name: m.slot2.team?.name ?? m.slot2.label,
+        },
+        homeScore: null,
+        awayScore: null,
+      });
+    });
+  });
+
+  out.sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
+  return out;
+}
+
+function TodayStatusBadge({ status }: { status: string }) {
+  if (status === "IN_PLAY" || status === "PAUSED" || status === "LIVE") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest text-emerald-300">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        LIVE
+      </span>
+    );
+  }
+  if (status === "FINISHED") {
+    return <span className="text-[10px] font-bold tracking-widest text-gray-500">FT</span>;
+  }
+  return null;
+}
+
+function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const matches = now ? collectTodayMatches(data, now) : [];
+  const dateLabel = now
+    ? now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })
+    : "";
+
+  return (
+    <div className="bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
+          Today&apos;s Matches
+        </span>
+        <span className="text-blue-400 text-xs font-semibold">{dateLabel}</span>
+      </div>
+
+      {matches.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-400 text-sm">No matches scheduled today.</p>
+          <p className="text-gray-600 text-xs mt-1">Check back tomorrow.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {matches.map((m, i) => (
+            <div
+              key={`${m.utcDate}-${i}`}
+              className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#020d1c]/60 border border-[#0f2d4a] rounded-xl px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2 min-w-0 justify-end">
+                <span className="text-white font-semibold text-sm truncate">{m.home.name}</span>
+                <span className="text-xl leading-none flex-shrink-0">{m.home.flag}</span>
+              </div>
+              <div className="flex flex-col items-center px-2">
+                {m.status === "FINISHED" || m.homeScore != null ? (
+                  <span className="text-white font-black text-base tabular-nums">
+                    {m.homeScore ?? 0}–{m.awayScore ?? 0}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 text-xs font-semibold tabular-nums">
+                    {formatKickoff(m.utcDate)}
+                  </span>
+                )}
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[9px] tracking-widest text-gray-600 uppercase">
+                    {m.round}
+                  </span>
+                  <TodayStatusBadge status={m.status} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xl leading-none flex-shrink-0">{m.away.flag}</span>
+                <span className="text-white font-semibold text-sm truncate">{m.away.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Champion banner (shown once the final is decided)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ChampionCard({ champion }: { champion: Team }) {
+  return (
+    <div className="relative bg-gradient-to-br from-amber-500/15 via-[#071e38]/70 to-[#071e38]/70 backdrop-blur-md border border-amber-500/40 rounded-2xl p-6 overflow-hidden">
+      <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-4">
+          <Trophy className="w-4 h-4 text-amber-400" />
+          <span className="text-amber-300 text-xs font-bold tracking-widest uppercase">
+            World Champions · 2026
+          </span>
+        </div>
+        <div className="flex items-center gap-5">
+          <span className="text-7xl leading-none drop-shadow-lg">{champion.flag}</span>
+          <div className="min-w-0">
+            <p className="text-white font-black text-3xl sm:text-4xl leading-tight">
+              {champion.name}
+            </p>
+            <p className="text-amber-200/80 text-sm font-semibold mt-1">
+              {champion.confederation} · FIFA #{champion.fifaRank}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Hero
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Hero() {
+function Hero({ data }: { data: WorldCupPayload | null }) {
   const c = useCountdown(TOURNAMENT.startDate);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const startMs = new Date(TOURNAMENT.startDate).getTime();
+  const phase: "pre" | "during" | "post" =
+    data?.champion
+      ? "post"
+      : now == null || now < startMs
+      ? "pre"
+      : "during";
 
   return (
     <section id="overview" className="relative pt-16 pb-12 px-4 scroll-mt-12">
@@ -137,22 +339,28 @@ function Hero() {
             </div>
           </div>
 
-          <div className="bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
-                Kickoff in
-              </span>
-              <span className="text-blue-400 text-xs font-semibold">
-                Opening · {TOURNAMENT.openingVenue}
-              </span>
+          {phase === "post" && data?.champion ? (
+            <ChampionCard champion={data.champion} />
+          ) : phase === "during" ? (
+            <TodayMatchesCard data={data} />
+          ) : (
+            <div className="bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
+                  Kickoff in
+                </span>
+                <span className="text-blue-400 text-xs font-semibold">
+                  Opening · {TOURNAMENT.openingVenue}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2 sm:gap-3">
+                <CountdownBlock value={c.days} label="Days" />
+                <CountdownBlock value={c.hours} label="Hours" />
+                <CountdownBlock value={c.minutes} label="Mins" />
+                <CountdownBlock value={c.seconds} label="Secs" />
+              </div>
             </div>
-            <div className="flex justify-between gap-2 sm:gap-3">
-              <CountdownBlock value={c.days} label="Days" />
-              <CountdownBlock value={c.hours} label="Hours" />
-              <CountdownBlock value={c.minutes} label="Mins" />
-              <CountdownBlock value={c.seconds} label="Secs" />
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </section>
@@ -1154,6 +1362,7 @@ type WorldCupPayload = {
   groups: ResolvedGroup[];
   bracket: Round[];
   thirdPlace: Match;
+  champion: Team | null;
 };
 
 // Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.
@@ -1284,7 +1493,7 @@ export default function WorldCupDashboard() {
     <main className="bg-[#020d1c] min-h-screen bg-aurora">
       <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
-        <Hero />
+        <Hero data={data} />
         <StatStrip />
         <GroupsSection
           resolved={data?.groups}

@@ -278,3 +278,22 @@ export function resolveBracket(matches: FDMatch[] | null): {
 
   return { rounds, thirdPlace };
 }
+
+// Find the World Cup champion by looking at the FINAL fixture's winner.
+// Returns null if the final hasn't been played (or wasn't decided) yet.
+export function resolveChampion(
+  matches: FDMatch[] | null,
+): import("@/lib/worldcup").Team | null {
+  if (!matches || matches.length === 0) return null;
+  const finals = matches.filter((m) => STAGE_TO_ROUND_SHORT[m.stage] === "FINAL");
+  if (finals.length === 0) return null;
+  // Pick the latest by date (there's only one, but be defensive).
+  finals.sort(
+    (a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime(),
+  );
+  const final = finals[0];
+  if (final.status !== "FINISHED") return null;
+  if (final.score.winner === "HOME_TEAM") return findLocalTeam(final.homeTeam);
+  if (final.score.winner === "AWAY_TEAM") return findLocalTeam(final.awayTeam);
+  return null;
+}
