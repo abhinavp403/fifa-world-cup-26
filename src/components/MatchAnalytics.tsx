@@ -75,7 +75,7 @@ function StatCard({
   const awayWins = a > h;
 
   return (
-    <div className="bg-[#0f2d4a]/60 border border-[#1a4a7a] rounded-lg p-3">
+    <div className="bg-[var(--border-card)]/60 border border-[var(--border-strong)] rounded-lg p-3">
       <div className="flex items-center justify-center gap-2 mb-2.5">
         <Icon className="w-4 h-4 text-gray-300" />
         <span className="text-gray-400 text-xs font-semibold uppercase tracking-wide">
@@ -85,7 +85,7 @@ function StatCard({
       <div className="flex items-center justify-between gap-2">
         <div
           className={`text-lg md:text-xl font-bold leading-none ${
-            homeWins ? "text-blue-300" : "text-white/70"
+            homeWins ? "text-[var(--accent-300)]" : "text-white/70"
           }`}
         >
           {homeValue}
@@ -143,7 +143,7 @@ function ComparisonRow({
       </div>
 
       {/* Home bar — right-aligned, grows inward from center label */}
-      <div className="min-w-0 flex justify-end h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
+      <div className="min-w-0 flex justify-end h-1.5 rounded-full bg-[var(--bg-card-deep)] overflow-hidden">
         <div
           style={{
             width: `${homePct}%`,
@@ -159,7 +159,7 @@ function ComparisonRow({
       </div>
 
       {/* Away bar — left-aligned, grows inward from center label */}
-      <div className="min-w-0 flex justify-start h-1.5 rounded-full bg-[#0a1e35] overflow-hidden">
+      <div className="min-w-0 flex justify-start h-1.5 rounded-full bg-[var(--bg-card-deep)] overflow-hidden">
         <div
           style={{
             width: `${awayPct}%`,
@@ -253,7 +253,7 @@ function CompactPlayerRow({
   const colW = posType === "GK" ? "w-10" : "w-8";
 
   return (
-    <div className="flex items-center gap-1.5 px-2 py-2 border-b border-[#0d2540]/60 last:border-0">
+    <div className="flex items-center gap-1.5 px-2 py-2 border-b border-[var(--border-row)]/60 last:border-0">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-white text-sm font-semibold truncate">{player.name}</span>
@@ -317,8 +317,8 @@ function CompactPositionGroup({
   const colW = posType === "GK" ? "w-10" : "w-8";
 
   return (
-    <div className="mb-2 rounded-xl overflow-hidden border border-[#0f2d4a]">
-      <div className="flex items-center justify-between px-2 py-1.5 bg-[#0a1e35]">
+    <div className="mb-2 rounded-xl overflow-hidden border border-[var(--border-card)]">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-[var(--bg-card-deep)]">
         <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase">
           {title}{" "}
           <span className="text-gray-600 font-normal">{players.length}</span>
@@ -332,7 +332,7 @@ function CompactPositionGroup({
           <span className="w-11 text-center text-[9px] font-bold text-gray-600">RTG</span>
         </div>
       </div>
-      <div className="bg-[#071e38]/60">
+      <div className="bg-[var(--bg-card)]/60">
         {players.map((p) => (
           <CompactPlayerRow key={p.id} player={p} posType={posType} />
         ))}
@@ -496,7 +496,7 @@ function FormationPitch({
 
       <svg
         viewBox="0 0 100 100"
-        className="w-full bg-gradient-to-b from-[#0f4a3a] to-[#071e38] rounded-xl border aspect-square shadow-lg"
+        className="w-full bg-gradient-to-b from-[#0f4a3a] to-[var(--bg-card)] rounded-xl border aspect-square shadow-lg"
         style={{ borderColor: teamColor + "4d" }}
       >
         <rect width="100" height="100" fill="none" stroke="#3ba68f" strokeWidth="0.8" />
@@ -593,7 +593,7 @@ const EVENT_CONFIG = {
     label: "Yellow Card",
     iconBg: "bg-amber-500/20 ring-1 ring-amber-500/30",
     rowBg: "bg-transparent border border-transparent",
-    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+    minuteBg: "bg-[var(--border-card)] border-[var(--border-strong)] text-gray-300",
   },
   redCard: {
     icon: "🟥",
@@ -607,7 +607,7 @@ const EVENT_CONFIG = {
     label: "Substitution",
     iconBg: "bg-sky-500/15 ring-1 ring-sky-500/20",
     rowBg: "bg-transparent border border-transparent",
-    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+    minuteBg: "bg-[var(--border-card)] border-[var(--border-strong)] text-gray-300",
   },
 } as const;
 
@@ -619,7 +619,7 @@ function getEventConfig(type: string) {
     label: type,
     iconBg: "bg-gray-500/15",
     rowBg: "bg-transparent border border-transparent",
-    minuteBg: "bg-[#0f2d4a] border-[#1a4a7a] text-gray-300",
+    minuteBg: "bg-[var(--border-card)] border-[var(--border-strong)] text-gray-300",
   };
 }
 
@@ -697,7 +697,7 @@ function KeyMomentsTimeline({
         {/* The bar — padded left to align with marker area */}
         <div className="flex items-center gap-1">
           <div className={`${LABEL_W} flex-shrink-0`} />
-          <div className="relative h-2.5 rounded-full bg-[#0f2d4a] border border-[#1a4a7a] overflow-visible flex-1">
+          <div className="relative h-2.5 rounded-full bg-[var(--border-card)] border border-[var(--border-strong)] overflow-visible flex-1">
             <div
               className="absolute inset-0 rounded-full"
               style={{
@@ -765,7 +765,7 @@ function KeyMomentsTimeline({
       </div>
 
       {/* ── Two-column match facts ── */}
-      <div className="pt-2 border-t border-[#0f2d4a]">
+      <div className="pt-2 border-t border-[var(--border-card)]">
         {/* Column headers — team names instead of Home / Away */}
         <div className="grid grid-cols-[1fr_56px_1fr] gap-2 pb-2 text-[10px] font-bold tracking-widest text-gray-500 uppercase px-1">
           <span className="text-right truncate" style={{ color: homeColor + "b3" }}>{homeName}</span>
@@ -785,7 +785,7 @@ function KeyMomentsTimeline({
                 <div key="ht-divider" className="grid grid-cols-[1fr_56px_1fr] gap-2 items-center py-1 px-2 my-1">
                   <div className="h-px bg-white/10" />
                   <div className="flex justify-center">
-                    <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase bg-[#0f2d4a] border border-[#1a4a7a] px-2 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase bg-[var(--border-card)] border border-[var(--border-strong)] px-2 py-0.5 rounded-full whitespace-nowrap">
                       Half Time
                     </span>
                   </div>
@@ -967,14 +967,14 @@ export default function MatchAnalytics({
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-[#020d1c] border border-[#1a4a7a] sm:rounded-2xl w-full sm:max-w-6xl max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="relative bg-[var(--bg-darker)] border border-[var(--border-strong)] sm:rounded-2xl w-full sm:max-w-6xl max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
       >
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[#071e38]/90 border border-[#1a4a7a] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+            className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-strong)] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -995,7 +995,7 @@ export default function MatchAnalytics({
 
   if (error || !data) {
     return dialogShell(
-      <div className="max-w-3xl mx-auto bg-[#071e38]/80 border border-rose-500/30 rounded-2xl p-6 text-center m-6">
+      <div className="max-w-3xl mx-auto bg-[var(--bg-card)]/80 border border-rose-500/30 rounded-2xl p-6 text-center m-6">
         <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
         <p className="text-white font-semibold mb-1">Match data unavailable</p>
         <p className="text-gray-400 text-sm">
@@ -1139,7 +1139,7 @@ export default function MatchAnalytics({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
+          className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-2xl p-6 mb-8"
         >
           <KeyMomentsTimeline
             events={events}
@@ -1156,7 +1156,7 @@ export default function MatchAnalytics({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
+          className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-2xl p-6 mb-8"
         >
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-white text-xl font-bold">Team Comparison</h3>
@@ -1193,7 +1193,7 @@ export default function MatchAnalytics({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
+          className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-2xl p-6 mb-8"
         >
           <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
             <h3 className="text-white text-xl font-bold">Player Performance Ratings</h3>
@@ -1212,7 +1212,7 @@ export default function MatchAnalytics({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-2xl p-6 mb-8"
+          className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-2xl p-6 mb-8"
         >
           <h3 className="text-white text-xl font-bold mb-6">Formations</h3>
           <div className="grid lg:grid-cols-2 gap-8">

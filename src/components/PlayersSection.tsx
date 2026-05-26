@@ -98,15 +98,15 @@ function LeaderCard({
   }, [players, statKey, filterFn]);
 
   return (
-    <div className="bg-[#071e38]/70 border border-[#0f2d4a] rounded-2xl overflow-hidden">
+    <div className="bg-[var(--bg-card)]/70 border border-[var(--border-card)] rounded-2xl overflow-hidden">
       <div
-        className="px-4 py-3 border-b border-[#0f2d4a] flex items-center gap-2.5"
+        className="px-4 py-3 border-b border-[var(--border-card)] flex items-center gap-2.5"
         style={{ background: `linear-gradient(to right, ${accent}11, transparent)` }}
       >
         <Icon className="w-4 h-4" style={{ color: accent }} />
         <h3 className="text-white font-bold text-sm tracking-tight">{title}</h3>
       </div>
-      <div className="divide-y divide-[#0d2540]/60">
+      <div className="divide-y divide-[var(--border-row)]/60">
         {top.length === 0 ? (
           <p className="px-4 py-8 text-center text-gray-600 text-xs">No players yet.</p>
         ) : (
@@ -161,7 +161,7 @@ function SearchResultCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left bg-[#071e38]/60 border border-[#0f2d4a] rounded-xl px-4 py-3 flex items-center gap-4 hover:border-[#1a4a7a] hover:bg-[#071e38]/90 transition-colors cursor-pointer"
+      className="w-full text-left bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl px-4 py-3 flex items-center gap-4 hover:border-[var(--border-strong)] hover:bg-[var(--bg-card)]/90 transition-colors cursor-pointer"
     >
       <PlayerAvatar player={p.player} color={p.teamColor} size={48} />
       <div className="flex-1 min-w-0">
@@ -238,7 +238,7 @@ export default function PlayersSection({
     <section id="players" className="px-4 py-10 scroll-mt-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
-          <User className="w-5 h-5 text-blue-400" />
+          <User className="w-5 h-5 text-[var(--accent-400)]" />
           <h2 className="text-white font-bold text-2xl">Player Leaders</h2>
         </div>
         <p className="text-gray-500 text-sm mb-6">
@@ -275,7 +275,7 @@ export default function PlayersSection({
         </div>
 
         {/* ── Search ── */}
-        <div className="bg-[#071e38]/60 border border-[#0f2d4a] rounded-2xl p-5">
+        <div className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-2xl p-5">
           <h3 className="text-white font-bold text-base mb-1">Player Search</h3>
           <p className="text-gray-500 text-xs mb-4">
             Search any World Cup player by name to see their base stats
@@ -287,7 +287,7 @@ export default function PlayersSection({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Type a player name…"
-              className="w-full bg-[#020d1c] border border-[#0f2d4a] rounded-full pl-10 pr-9 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50"
+              className="w-full bg-[var(--bg-darker)] border border-[var(--border-card)] rounded-full pl-10 pr-9 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-[var(--accent-500)]/50"
             />
             {search && (
               <button

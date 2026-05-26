@@ -118,7 +118,7 @@ function PlayerRow({
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className="grid items-center gap-x-4 px-4 py-4 border-b border-[#0d2540]/60 last:border-0 hover:bg-white/[0.04] cursor-pointer transition-colors"
+      className="grid items-center gap-x-4 px-4 py-4 border-b border-[var(--border-row)]/60 last:border-0 hover:bg-white/[0.04] cursor-pointer transition-colors"
       style={{ gridTemplateColumns: statCols(statDefs.length) }}
     >
       {/* Photo + jersey number overlay */}
@@ -274,10 +274,10 @@ function PositionGroup({
   }
 
   return (
-    <div className="mb-3 rounded-xl overflow-hidden border border-[#0f2d4a]">
+    <div className="mb-3 rounded-xl overflow-hidden border border-[var(--border-card)]">
       {/* Header */}
       <div
-        className="grid items-center gap-x-4 px-4 py-2.5 bg-[#0a1e35]"
+        className="grid items-center gap-x-4 px-4 py-2.5 bg-[var(--bg-card-deep)]"
         style={{ gridTemplateColumns: statCols(statDefs.length) }}
       >
         <div className="flex justify-center">
@@ -298,7 +298,7 @@ function PositionGroup({
       </div>
 
       {/* Player rows */}
-      <div className="bg-[#071e38]/60">
+      <div className="bg-[var(--bg-card)]/60">
         {sorted.map((p) => (
           <PlayerRow
             key={p.number}
@@ -330,7 +330,7 @@ function StatBlock({
   accent?: string;
 }) {
   return (
-    <div className="bg-[#0a1e35] border border-[#0d2540] rounded-xl p-3 text-center">
+    <div className="bg-[var(--bg-card-deep)] border border-[var(--border-row)] rounded-xl p-3 text-center">
       <p className="text-[9px] font-bold tracking-widest text-gray-600 uppercase mb-1.5 leading-tight">
         {label}
       </p>
@@ -592,7 +592,7 @@ function SummaryCard({
   sub?:      string;
 }) {
   return (
-    <div className="bg-[#071e38]/80 border border-[#1a4a7a] rounded-xl p-4 text-center">
+    <div className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-xl p-4 text-center">
       <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">{label}</p>
       <p className="text-white font-bold text-lg leading-tight truncate">{value}</p>
       {sub && <p className="text-gray-600 text-[10px] mt-0.5 truncate">{sub}</p>}
@@ -683,7 +683,7 @@ export default function PlayerDashboard({
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="relative bg-[#020d1c] border border-[#1a4a7a] sm:rounded-2xl w-full sm:max-w-[80vw] max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="relative bg-[var(--bg-darker)] border border-[var(--border-strong)] sm:rounded-2xl w-full sm:max-w-[80vw] max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
       >
         <div
           className="h-1 w-full rounded-t-2xl flex-shrink-0"
@@ -693,7 +693,7 @@ export default function PlayerDashboard({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[#071e38]/90 border border-[#1a4a7a] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+          className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-strong)] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -776,7 +776,7 @@ export default function PlayerDashboard({
       ))}
 
       {/* ── Legend ── */}
-      <div className="mt-6 pb-2 border-t border-[#0f2d4a] pt-4">
+      <div className="mt-6 pb-2 border-t border-[var(--border-card)] pt-4">
         <p className="text-gray-600 text-[9px] uppercase tracking-widest mb-3">Stat Legend</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5">
           {[

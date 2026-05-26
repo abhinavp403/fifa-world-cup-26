@@ -48,19 +48,19 @@ function MatchCard({
       ? "border-amber-400/40 shadow-[0_0_24px_-8px_rgba(251,191,36,0.45)]"
       : highlight === "third"
       ? "border-rose-400/30"
-      : "border-[#0f2d4a] hover:border-blue-500/30";
+      : "border-[var(--border-card)] hover:border-[var(--accent-500)]/30";
 
   const label = `${match.slot1.team?.name ?? match.slot1.label} vs ${match.slot2.team?.name ?? match.slot2.label}`;
   const date = match.date ?? new Date(2026, 5, 11).toISOString();
 
   const inner = (
     <>
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#0f2d4a] bg-[#020d1c]/40">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border-card)] bg-[var(--bg-darker)]/40">
         <span className="text-[10px] font-bold tracking-widest text-gray-500">
           {match.id}
         </span>
         {match.venue ? (
-          <span className="text-[10px] text-blue-300/80 truncate ml-2">
+          <span className="text-[10px] text-[var(--accent-300)]/80 truncate ml-2">
             {match.venue}
           </span>
         ) : (
@@ -68,7 +68,7 @@ function MatchCard({
         )}
       </div>
       <SlotRow slot={match.slot1} />
-      <div className="h-px bg-[#0f2d4a] mx-3" />
+      <div className="h-px bg-[var(--border-card)] mx-3" />
       <SlotRow slot={match.slot2} />
     </>
   );
@@ -78,7 +78,7 @@ function MatchCard({
       <button
         type="button"
         onClick={() => onMatchClick(match.fixtureId ?? null, label, date)}
-        className={`w-full text-left bg-[#071e38]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors cursor-pointer group`}
+        className={`w-full text-left bg-[var(--bg-card)]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors cursor-pointer group`}
       >
         {inner}
       </button>
@@ -87,7 +87,7 @@ function MatchCard({
 
   return (
     <div
-      className={`bg-[#071e38]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors`}
+      className={`bg-[var(--bg-card)]/80 backdrop-blur-sm border ${border} rounded-xl overflow-hidden transition-colors`}
     >
       {inner}
     </div>
@@ -119,7 +119,7 @@ function RoundColumn({
   return (
     <div className="flex flex-col w-[220px] flex-shrink-0">
       <div className="text-center mb-3">
-        <p className="text-blue-300 text-[10px] font-bold tracking-widest">
+        <p className="text-[var(--accent-300)] text-[10px] font-bold tracking-widest">
           {short}
         </p>
         <p className="text-gray-500 text-[11px]">{name}</p>
@@ -175,14 +175,14 @@ export default function KnockoutBracket({
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
           <div className="flex items-center gap-2">
-            <Swords className="w-5 h-5 text-blue-400" />
+            <Swords className="w-5 h-5 text-[var(--accent-400)]" />
             <h2 className="text-white font-bold text-2xl">Knockout Bracket</h2>
           </div>
           <span
             className={`flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-bold tracking-widest border ${
               live
                 ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                : "bg-gray-500/10 text-gray-400 border-[#0f2d4a]"
+                : "bg-gray-500/10 text-gray-400 border-[var(--border-card)]"
             }`}
           >
             <span
@@ -217,7 +217,7 @@ export default function KnockoutBracket({
         {/* Scrollable bracket */}
         <div className="relative">
           <div className="overflow-x-auto -mx-4 px-4 pb-4">
-            <div className="bg-gradient-to-b from-[#071e38]/40 to-[#020d1c]/30 border border-[#0f2d4a] rounded-2xl p-5 min-w-[1180px]">
+            <div className="bg-gradient-to-b from-[var(--bg-card)]/40 to-[var(--bg-darker)]/30 border border-[var(--border-card)] rounded-2xl p-5 min-w-[1180px]">
               <div className="flex gap-5 items-stretch min-h-[820px]">
                 {rounds.map((round, i) => (
                   <RoundColumn
@@ -242,7 +242,7 @@ export default function KnockoutBracket({
 
         {/* Third-place + Champion strip */}
         <div className="grid sm:grid-cols-2 gap-4 mt-5">
-          <div className="bg-[#071e38] border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4">
+          <div className="bg-[var(--bg-card)] border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
               <Medal className="w-5 h-5 text-rose-300" />
             </div>
@@ -259,7 +259,7 @@ export default function KnockoutBracket({
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-[#071e38] to-[#0f2d4a] border border-amber-400/40 rounded-2xl p-4 flex items-center gap-4">
+          <div className="bg-gradient-to-br from-[var(--bg-card)] to-[var(--border-card)] border border-amber-400/40 rounded-2xl p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
               <Trophy className="w-5 h-5 text-amber-300" />
             </div>

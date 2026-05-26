@@ -25,6 +25,7 @@ body {
   isolation: isolate;
   overflow: hidden;
   background-color: #020d1c;
+  transition: background-color 400ms ease;
 }
 
 .bg-aurora::before,
@@ -42,6 +43,103 @@ body {
     radial-gradient(38rem 28rem at 82% 92%, rgba(34, 211, 238, 0.18), transparent 70%);
   filter: blur(40px) saturate(120%);
   animation: aurora-drift 28s ease-in-out infinite alternate;
+}
+
+/* ── Theme variants — override base aurora bg + gradient blobs + tokens ── */
+
+/* Color tokens used across cards, borders, accent text, gradients.
+   Stat colors (amber/rose/emerald/lime/orange) intentionally NOT themed. */
+
+.theme-midnight {
+  --bg-card:        #071e38;
+  --bg-card-deep:   #0a1e35;
+  --bg-darker:      #020d1c;
+  --border-card:    #0f2d4a;
+  --border-strong:  #1a4a7a;
+  --border-row:     #0d2540;
+  --accent-300:     #93c5fd; /* blue-300 */
+  --accent-400:     #60a5fa; /* blue-400 */
+  --accent-500:     #3b82f6; /* blue-500 */
+  --grad-from:      #60a5fa;
+  --grad-via:       #22d3ee;
+  --grad-to:        #34d399;
+}
+
+.theme-pitch {
+  --bg-card:        #052e1c;
+  --bg-card-deep:   #032416;
+  --bg-darker:      #03140a;
+  --border-card:    #0e4f2e;
+  --border-strong:  #166534;
+  --border-row:     #093d24;
+  --accent-300:     #86efac; /* green-300 */
+  --accent-400:     #4ade80; /* green-400 */
+  --accent-500:     #22c55e; /* green-500 */
+  --grad-from:      #4ade80;
+  --grad-via:       #34d399;
+  --grad-to:        #a3e635; /* lime */
+}
+
+.theme-ember {
+  --bg-card:        #2a0d0a;
+  --bg-card-deep:   #1f0908;
+  --bg-darker:      #150505;
+  --border-card:    #5c1f18;
+  --border-strong:  #7f1d1d;
+  --border-row:     #3d130f;
+  --accent-300:     #fdba74; /* orange-300 */
+  --accent-400:     #fb923c; /* orange-400 */
+  --accent-500:     #f97316; /* orange-500 */
+  --grad-from:      #fb923c;
+  --grad-via:       #f87171;
+  --grad-to:        #fbbf24;
+}
+
+.theme-royal {
+  --bg-card:        #1a0f33;
+  --bg-card-deep:   #150b29;
+  --bg-darker:      #0a0518;
+  --border-card:    #2e1a4d;
+  --border-strong:  #4c1d95;
+  --border-row:     #1f1238;
+  --accent-300:     #d8b4fe; /* purple-300 */
+  --accent-400:     #c084fc; /* purple-400 */
+  --accent-500:     #a855f7; /* purple-500 */
+  --grad-from:      #c084fc;
+  --grad-via:       #e879f9;
+  --grad-to:        #f0abfc;
+}
+
+.theme-midnight.bg-aurora { background-color: #020d1c; }
+
+.theme-pitch.bg-aurora { background-color: #03140a; }
+.theme-pitch.bg-aurora::before {
+  background:
+    radial-gradient(38rem 28rem at 12% 8%,  rgba(34, 197, 94, 0.30), transparent 65%),
+    radial-gradient(36rem 30rem at 88% 14%, rgba(16, 185, 129, 0.28), transparent 65%),
+    radial-gradient(42rem 32rem at 50% 42%, rgba(74, 222, 128, 0.18), transparent 70%),
+    radial-gradient(40rem 30rem at 18% 78%, rgba(132, 204, 22, 0.16), transparent 70%),
+    radial-gradient(38rem 28rem at 82% 92%, rgba(20, 184, 166, 0.20), transparent 70%);
+}
+
+.theme-ember.bg-aurora { background-color: #1a0808; }
+.theme-ember.bg-aurora::before {
+  background:
+    radial-gradient(38rem 28rem at 12% 8%,  rgba(220, 38, 38, 0.30), transparent 65%),
+    radial-gradient(36rem 30rem at 88% 14%, rgba(249, 115, 22, 0.24), transparent 65%),
+    radial-gradient(42rem 32rem at 50% 42%, rgba(251, 191, 36, 0.18), transparent 70%),
+    radial-gradient(40rem 30rem at 18% 78%, rgba(244, 63, 94, 0.18), transparent 70%),
+    radial-gradient(38rem 28rem at 82% 92%, rgba(234, 88, 12, 0.18), transparent 70%);
+}
+
+.theme-royal.bg-aurora { background-color: #0d0918; }
+.theme-royal.bg-aurora::before {
+  background:
+    radial-gradient(38rem 28rem at 12% 8%,  rgba(168, 85, 247, 0.30), transparent 65%),
+    radial-gradient(36rem 30rem at 88% 14%, rgba(139, 92, 246, 0.26), transparent 65%),
+    radial-gradient(42rem 32rem at 50% 42%, rgba(217, 70, 239, 0.20), transparent 70%),
+    radial-gradient(40rem 30rem at 18% 78%, rgba(99, 102, 241, 0.22), transparent 70%),
+    radial-gradient(38rem 28rem at 82% 92%, rgba(192, 132, 252, 0.18), transparent 70%);
 }
 
 .bg-aurora::after {

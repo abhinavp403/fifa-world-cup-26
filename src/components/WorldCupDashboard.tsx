@@ -67,12 +67,12 @@ function CountdownBlock({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
-        <div className="bg-gradient-to-br from-[#0f2d4a] to-[#071e38] border border-blue-500/30 rounded-xl px-4 sm:px-6 py-3 sm:py-4 min-w-[72px] sm:min-w-[96px] text-center">
+        <div className="bg-gradient-to-br from-[var(--border-card)] to-[var(--bg-card)] border border-[var(--accent-500)]/30 rounded-xl px-4 sm:px-6 py-3 sm:py-4 min-w-[72px] sm:min-w-[96px] text-center">
           <span className="text-white font-bold text-3xl sm:text-5xl tabular-nums tracking-tight">
             {padded}
           </span>
         </div>
-        <div className="absolute inset-0 rounded-xl bg-blue-500/10 blur-xl -z-10" />
+        <div className="absolute inset-0 rounded-xl bg-[var(--accent-500)]/10 blur-xl -z-10" />
       </div>
       <span className="text-gray-500 text-[10px] sm:text-xs font-semibold tracking-widest mt-2 uppercase">
         {label}
@@ -185,12 +185,12 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
     : "";
 
   return (
-    <div className="bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-6">
+    <div className="bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
         <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
           Today&apos;s Matches
         </span>
-        <span className="text-blue-400 text-xs font-semibold">{dateLabel}</span>
+        <span className="text-[var(--accent-400)] text-xs font-semibold">{dateLabel}</span>
       </div>
 
       {matches.length === 0 ? (
@@ -203,7 +203,7 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
           {matches.map((m, i) => (
             <div
               key={`${m.utcDate}-${i}`}
-              className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#020d1c]/60 border border-[#0f2d4a] rounded-xl px-3 py-2.5"
+              className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[var(--bg-darker)]/60 border border-[var(--border-card)] rounded-xl px-3 py-2.5"
             >
               <div className="flex items-center gap-2 min-w-0 justify-end">
                 <span className="text-white font-semibold text-sm truncate">{m.home.name}</span>
@@ -244,7 +244,7 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
 
 function ChampionCard({ champion }: { champion: Team }) {
   return (
-    <div className="relative bg-gradient-to-br from-amber-500/15 via-[#071e38]/70 to-[#071e38]/70 backdrop-blur-md border border-amber-500/40 rounded-2xl p-6 overflow-hidden">
+    <div className="relative bg-gradient-to-br from-amber-500/15 via-[var(--bg-card)]/70 to-[var(--bg-card)]/70 backdrop-blur-md border border-amber-500/40 rounded-2xl p-6 overflow-hidden">
       <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
       <div className="relative">
         <div className="flex items-center gap-2 mb-4">
@@ -270,10 +270,65 @@ function ChampionCard({ champion }: { champion: Team }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Theme picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ThemeId = "midnight" | "pitch" | "ember" | "royal";
+
+const THEMES: { id: ThemeId; label: string; swatch: string }[] = [
+  { id: "midnight", label: "Midnight", swatch: "#3b82f6" },
+  { id: "pitch",    label: "Pitch",    swatch: "#22c55e" },
+  { id: "ember",    label: "Ember",    swatch: "#f97316" },
+  { id: "royal",    label: "Royal",    swatch: "#a855f7" },
+];
+
+function ThemePicker({
+  theme,
+  onChange,
+}: {
+  theme:    ThemeId;
+  onChange: (t: ThemeId) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 bg-[var(--bg-card)]/60 backdrop-blur-md border border-[var(--border-card)] rounded-full px-3 py-1.5 self-end">
+      <span className="text-gray-500 text-[10px] tracking-widest font-bold uppercase">
+        Theme
+      </span>
+      <div className="flex items-center gap-1.5">
+        {THEMES.map((t) => {
+          const active = theme === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onChange(t.id)}
+              aria-label={`Use ${t.label} theme`}
+              title={t.label}
+              className={`w-5 h-5 rounded-full transition-all ${
+                active ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--bg-card)]" : "hover:scale-110"
+              }`}
+              style={{ backgroundColor: t.swatch }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Hero
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Hero({ data }: { data: WorldCupPayload | null }) {
+function Hero({
+  data,
+  theme,
+  onThemeChange,
+}: {
+  data:          WorldCupPayload | null;
+  theme:         ThemeId;
+  onThemeChange: (t: ThemeId) => void;
+}) {
   const c = useCountdown(TOURNAMENT.startDate);
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
@@ -296,9 +351,9 @@ function Hero({ data }: { data: WorldCupPayload | null }) {
         <div className="grid lg:grid-cols-[1.3fr_1fr] gap-8 items-center">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <span className="flex items-center gap-2 bg-blue-500/15 border border-blue-500/30 rounded-full px-3 py-1.5">
+              <span className="flex items-center gap-2 bg-[var(--accent-500)]/15 border border-[var(--accent-500)]/30 rounded-full px-3 py-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                <span className="text-blue-300 text-xs font-bold tracking-widest">
+                <span className="text-[var(--accent-300)] text-xs font-bold tracking-widest">
                   TOURNAMENT DASHBOARD
                 </span>
               </span>
@@ -310,7 +365,7 @@ function Hero({ data }: { data: WorldCupPayload | null }) {
             <h1 className="text-white font-black text-4xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight">
               FIFA World Cup
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)] bg-clip-text text-transparent">
                 2026
               </span>
             </h1>
@@ -325,42 +380,45 @@ function Hero({ data }: { data: WorldCupPayload | null }) {
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-6 text-sm">
               <div className="flex items-center gap-2 text-gray-400">
-                <Calendar className="w-4 h-4 text-blue-400" />
+                <Calendar className="w-4 h-4 text-[var(--accent-400)]" />
                 Jun 11 — Jul 19, 2026
               </div>
               <div className="flex items-center gap-2 text-gray-400">
-                <MapPin className="w-4 h-4 text-blue-400" />
+                <MapPin className="w-4 h-4 text-[var(--accent-400)]" />
                 {TOURNAMENT.hostCities} host cities
               </div>
               <div className="flex items-center gap-2 text-gray-400">
-                <Trophy className="w-4 h-4 text-blue-400" />
+                <Trophy className="w-4 h-4 text-[var(--accent-400)]" />
                 Final: {TOURNAMENT.finalVenue}
               </div>
             </div>
           </div>
 
-          {phase === "post" && data?.champion ? (
-            <ChampionCard champion={data.champion} />
-          ) : phase === "during" ? (
-            <TodayMatchesCard data={data} />
-          ) : (
-            <div className="bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-5">
-                <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
-                  Kickoff in
-                </span>
-                <span className="text-blue-400 text-xs font-semibold">
-                  Opening · {TOURNAMENT.openingVenue}
-                </span>
+          <div className="flex flex-col gap-3">
+            <ThemePicker theme={theme} onChange={onThemeChange} />
+            {phase === "post" && data?.champion ? (
+              <ChampionCard champion={data.champion} />
+            ) : phase === "during" ? (
+              <TodayMatchesCard data={data} />
+            ) : (
+              <div className="bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
+                    Kickoff in
+                  </span>
+                  <span className="text-[var(--accent-400)] text-xs font-semibold">
+                    Opening · {TOURNAMENT.openingVenue}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2 sm:gap-3">
+                  <CountdownBlock value={c.days} label="Days" />
+                  <CountdownBlock value={c.hours} label="Hours" />
+                  <CountdownBlock value={c.minutes} label="Mins" />
+                  <CountdownBlock value={c.seconds} label="Secs" />
+                </div>
               </div>
-              <div className="flex justify-between gap-2 sm:gap-3">
-                <CountdownBlock value={c.days} label="Days" />
-                <CountdownBlock value={c.hours} label="Hours" />
-                <CountdownBlock value={c.minutes} label="Mins" />
-                <CountdownBlock value={c.seconds} label="Secs" />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -385,13 +443,13 @@ function StatCard({
   accent?: "blue" | "emerald" | "amber" | "rose";
 }) {
   const accentMap = {
-    blue: "from-blue-500/20 to-blue-500/0 text-blue-400",
+    blue: "from-[var(--accent-500)]/20 to-[var(--accent-500)]/0 text-[var(--accent-400)]",
     emerald: "from-emerald-500/20 to-emerald-500/0 text-emerald-400",
     amber: "from-amber-500/20 to-amber-500/0 text-amber-400",
     rose: "from-rose-500/20 to-rose-500/0 text-rose-400",
   } as const;
   return (
-    <div className="relative bg-[#071e38] border border-[#0f2d4a] rounded-2xl p-5 overflow-hidden">
+    <div className="relative bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5 overflow-hidden">
       <div
         className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${accentMap[accent]} blur-2xl opacity-60`}
       />
@@ -459,10 +517,10 @@ function StatStrip() {
         />
       </div>
 
-      <div className="max-w-7xl mx-auto mt-4 bg-[#071e38] border border-[#0f2d4a] rounded-2xl p-5">
+      <div className="max-w-7xl mx-auto mt-4 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Globe2 className="w-4 h-4 text-blue-400" />
+            <Globe2 className="w-4 h-4 text-[var(--accent-400)]" />
             <span className="text-white font-semibold text-sm">
               Confederation breakdown
             </span>
@@ -472,7 +530,7 @@ function StatStrip() {
           </span>
         </div>
 
-        <div className="flex h-3 rounded-full overflow-hidden border border-[#0f2d4a]">
+        <div className="flex h-3 rounded-full overflow-hidden border border-[var(--border-card)]">
           {Array.from(confedCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([conf, n]) => (
@@ -512,7 +570,7 @@ function StatStrip() {
 
 function rankTier(rank: number): { label: string; color: string } {
   if (rank <= 10) return { label: "Elite", color: "text-emerald-300" };
-  if (rank <= 25) return { label: "Contender", color: "text-blue-300" };
+  if (rank <= 25) return { label: "Contender", color: "text-[var(--accent-300)]" };
   if (rank <= 50) return { label: "Solid", color: "text-amber-300" };
   return { label: "Outsider", color: "text-rose-300" };
 }
@@ -562,7 +620,7 @@ function TeamRow({
       <button
         type="button"
         onClick={() => onTeamClick(team.code)}
-        className="w-full flex items-center gap-3 py-2.5 border-b border-[#0f2d4a] last:border-b-0 hover:bg-[#0f2d4a]/60 transition-colors cursor-pointer text-left rounded-lg px-1 -mx-1"
+        className="w-full flex items-center gap-3 py-2.5 border-b border-[var(--border-card)] last:border-b-0 hover:bg-[var(--border-card)]/60 transition-colors cursor-pointer text-left rounded-lg px-1 -mx-1"
       >
         {inner}
       </button>
@@ -570,7 +628,7 @@ function TeamRow({
   }
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-[#0f2d4a] last:border-b-0">
+    <div className="flex items-center gap-3 py-2.5 border-b border-[var(--border-card)] last:border-b-0">
       {inner}
     </div>
   );
@@ -578,8 +636,8 @@ function TeamRow({
 
 function StandingsTable({ rows }: { rows: GroupRow[] }) {
   return (
-    <div className="mt-3 border border-[#0f2d4a] rounded-lg overflow-hidden">
-      <div className="grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 px-2 py-1.5 bg-[#020d1c]/50 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
+    <div className="mt-3 border border-[var(--border-card)] rounded-lg overflow-hidden">
+      <div className="grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 px-2 py-1.5 bg-[var(--bg-darker)]/50 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
         <div>#</div>
         <div>Team</div>
         <div className="text-right">P</div>
@@ -598,7 +656,7 @@ function StandingsTable({ rows }: { rows: GroupRow[] }) {
         return (
           <div
             key={r.team.code}
-            className={`grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 items-center px-2 py-1.5 text-[11px] border-t border-[#0f2d4a] ${adv}`}
+            className={`grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 items-center px-2 py-1.5 text-[11px] border-t border-[var(--border-card)] ${adv}`}
           >
             <div className="text-gray-500 font-bold tabular-nums">{r.position}</div>
             <div className="flex items-center gap-1.5 min-w-0">
@@ -643,7 +701,7 @@ function GroupMatchRow({
           match.utcDate,
         )
       }
-      className="w-full text-left group flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[#0f2d4a]/60 transition-colors cursor-pointer"
+      className="w-full text-left group flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[var(--border-card)]/60 transition-colors cursor-pointer"
     >
       <div className="flex items-center gap-1 flex-1 min-w-0">
         <span className="text-base leading-none">{match.homeFlag}</span>
@@ -677,7 +735,7 @@ function GroupMatchRow({
         <span className="text-base leading-none">{match.awayFlag}</span>
       </div>
 
-      <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-blue-400 flex-shrink-0 transition-colors" />
+      <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-[var(--accent-400)] flex-shrink-0 transition-colors" />
     </button>
   );
 }
@@ -717,7 +775,7 @@ function GroupCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.4, ease: "easeOut", delay: (i % 4) * 0.05 }}
-      className="relative bg-[#071e38] border border-[#0f2d4a] rounded-2xl p-5 hover:border-blue-500/40 transition-colors"
+      className="relative bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5 hover:border-[var(--accent-500)]/40 transition-colors"
     >
       <div className="absolute top-2 right-3 text-[80px] font-black text-white/[0.03] leading-none select-none pointer-events-none">
         {group.letter}
@@ -726,8 +784,8 @@ function GroupCard({
       <div className="relative">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/25 to-blue-500/5 border border-blue-500/30 flex items-center justify-center">
-              <span className="text-blue-200 font-black text-base">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--accent-500)]/25 to-[var(--accent-500)]/5 border border-[var(--accent-500)]/30 flex items-center justify-center">
+              <span className="text-[var(--accent-300)] font-black text-base">
                 {group.letter}
               </span>
             </div>
@@ -761,11 +819,11 @@ function GroupCard({
         )}
 
         {/* See All Matches toggle */}
-        <div className="mt-3 pt-3 border-t border-[#0f2d4a]">
+        <div className="mt-3 pt-3 border-t border-[var(--border-card)]">
           <button
             type="button"
             onClick={() => setMatchesOpen((v) => !v)}
-            className="w-full flex items-center justify-between text-[12px] font-semibold text-blue-400 hover:text-blue-300 transition-colors group"
+            className="w-full flex items-center justify-between text-[12px] font-semibold text-[var(--accent-400)] hover:text-[var(--accent-300)] transition-colors group"
           >
             <span>See All Matches</span>
             <ChevronDown
@@ -859,7 +917,7 @@ function GroupsSection({
         <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Users className="w-5 h-5 text-blue-400" />
+              <Users className="w-5 h-5 text-[var(--accent-400)]" />
               <h2 className="text-white font-bold text-2xl">Group Stage</h2>
             </div>
             <p className="text-gray-500 text-sm">
@@ -880,7 +938,7 @@ function GroupsSection({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search team…"
-                className="bg-[#071e38] border border-[#0f2d4a] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50 w-44 pr-8"
+                className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-[var(--accent-500)]/50 w-44 pr-8"
               />
               {search && (
                 <button
@@ -908,8 +966,8 @@ function GroupsSection({
                 onClick={() => setConfFilter(c)}
                 className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border ${
                   active
-                    ? "bg-[#0f2d4a] text-white border-blue-500/40"
-                    : "bg-transparent text-gray-400 border-[#0f2d4a] hover:text-white"
+                    ? "bg-[var(--border-card)] text-white border-[var(--accent-500)]/40"
+                    : "bg-transparent text-gray-400 border-[var(--border-card)] hover:text-white"
                 }`}
               >
                 {c !== "ALL" && (
@@ -965,7 +1023,7 @@ const HIGHLIGHT_BADGE: Record<
 > = {
   opening: {
     label: "OPENING",
-    className: "bg-blue-500/15 text-blue-200 border-blue-500/30",
+    className: "bg-[var(--accent-500)]/15 text-[var(--accent-300)] border-[var(--accent-500)]/30",
   },
   final: {
     label: "FINAL",
@@ -989,7 +1047,7 @@ function HostCitiesSection() {
     <section id="cities" className="px-4 py-10 scroll-mt-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
-          <MapPin className="w-5 h-5 text-blue-400" />
+          <MapPin className="w-5 h-5 text-[var(--accent-400)]" />
           <h2 className="text-white font-bold text-2xl">Host Cities</h2>
         </div>
         <p className="text-gray-500 text-sm mb-6">
@@ -997,8 +1055,8 @@ function HostCitiesSection() {
           hosted
         </p>
 
-        <div className="bg-[#071e38] border border-[#0f2d4a] rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_2fr_0.8fr_0.7fr_1.6fr] gap-x-4 px-5 py-3 border-b border-[#0f2d4a] text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_2fr_0.8fr_0.7fr_1.6fr] gap-x-4 px-5 py-3 border-b border-[var(--border-card)] text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
             <div>City</div>
             <div className="hidden sm:block">Stadium</div>
             <div className="hidden sm:block text-right">Cap.</div>
@@ -1013,7 +1071,7 @@ function HostCitiesSection() {
               <div
                 key={c.city}
                 className={`grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_2fr_0.8fr_0.7fr_1.6fr] gap-x-4 items-center px-5 py-3 ${
-                  i !== sorted.length - 1 ? "border-b border-[#0f2d4a]" : ""
+                  i !== sorted.length - 1 ? "border-b border-[var(--border-card)]" : ""
                 }`}
               >
                 {/* City + flag + (mobile) stadium + badge */}
@@ -1037,7 +1095,7 @@ function HostCitiesSection() {
                     <p className="text-gray-500 text-[11px] sm:hidden truncate">
                       {c.stadium}
                       {badge && (
-                        <span className="ml-1.5 text-[9px] font-bold tracking-widest text-blue-300">
+                        <span className="ml-1.5 text-[9px] font-bold tracking-widest text-[var(--accent-300)]">
                           · {badge.label}
                         </span>
                       )}
@@ -1062,9 +1120,9 @@ function HostCitiesSection() {
 
                 {/* Load bar */}
                 <div className="hidden sm:flex items-center gap-2">
-                  <div className="h-1.5 rounded-full bg-[#0f2d4a] overflow-hidden flex-1">
+                  <div className="h-1.5 rounded-full bg-[var(--border-card)] overflow-hidden flex-1">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                      className="h-full bg-gradient-to-r from-[var(--grad-from)] to-[var(--grad-via)]"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -1090,7 +1148,7 @@ function ResultsPlaceholder() {
     <section id="analytics" className="px-4 py-10 scroll-mt-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
-          <Trophy className="w-5 h-5 text-blue-400" />
+          <Trophy className="w-5 h-5 text-[var(--accent-400)]" />
           <h2 className="text-white font-bold text-2xl">Match Analytics</h2>
         </div>
         <p className="text-gray-500 text-sm mb-6">
@@ -1098,14 +1156,14 @@ function ResultsPlaceholder() {
           as fixtures complete.
         </p>
 
-        <div className="relative bg-gradient-to-br from-[#071e38] to-[#020d1c] border border-[#0f2d4a] rounded-2xl p-8 sm:p-12 text-center overflow-hidden">
+        <div className="relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-darker)] border border-[var(--border-card)] rounded-2xl p-8 sm:p-12 text-center overflow-hidden">
           <div className="absolute inset-0 opacity-30 pointer-events-none">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-blue-500/10 blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-[var(--accent-500)]/10 blur-3xl" />
           </div>
 
           <div className="relative">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/30 mb-5">
-              <Calendar className="w-7 h-7 text-blue-300" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--accent-500)]/10 border border-[var(--accent-500)]/30 mb-5">
+              <Calendar className="w-7 h-7 text-[var(--accent-300)]" />
             </div>
             <h3 className="text-white font-bold text-xl mb-2">
               Match center opens June 11, 2026
@@ -1125,9 +1183,9 @@ function ResultsPlaceholder() {
               ].map((p) => (
                 <div
                   key={p.label}
-                  className="bg-[#071e38]/60 border border-[#0f2d4a] rounded-xl px-3 py-3 flex items-center gap-2 justify-center"
+                  className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl px-3 py-3 flex items-center gap-2 justify-center"
                 >
-                  <span className="text-blue-400">{p.icon}</span>
+                  <span className="text-[var(--accent-400)]">{p.icon}</span>
                   <span className="text-gray-300 text-xs font-semibold">
                     {p.label}
                   </span>
@@ -1194,7 +1252,7 @@ function StatusBadge({ status }: { status: MatchListItem["status"] }) {
     );
   }
   return (
-    <span className="bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full">
+    <span className="bg-[var(--accent-500)]/15 border border-[var(--accent-500)]/30 text-[var(--accent-300)] text-xs font-bold px-2.5 py-1 rounded-full">
       UPCOMING
     </span>
   );
@@ -1219,10 +1277,10 @@ function MatchRow({
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className={`w-full text-left bg-[#071e38]/80 hover:bg-[#0a2647]/90 border rounded-2xl p-4 sm:p-5 transition-all group ${
+      className={`w-full text-left bg-[var(--bg-card)]/80 hover:bg-[#0a2647]/90 border rounded-2xl p-4 sm:p-5 transition-all group ${
         active
-          ? "border-blue-500/60 ring-1 ring-blue-500/30"
-          : "border-[#1a4a7a] hover:border-blue-500/40"
+          ? "border-[var(--accent-500)]/60 ring-1 ring-blue-500/30"
+          : "border-[var(--border-strong)] hover:border-[var(--accent-500)]/40"
       }`}
     >
       {/* Top meta row */}
@@ -1290,7 +1348,7 @@ function MatchRow({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#0f2d4a] text-xs text-gray-400">
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-card)] text-xs text-gray-400">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5" />
@@ -1305,7 +1363,7 @@ function MatchRow({
             })}
           </span>
         </div>
-        <span className="flex items-center gap-1 text-blue-300 font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
+        <span className="flex items-center gap-1 text-[var(--accent-300)] font-semibold opacity-80 group-hover:opacity-100 transition-opacity">
           View analytics
           <ChevronRight className="w-3.5 h-3.5" />
         </span>
@@ -1325,7 +1383,7 @@ function MatchCenter({
     <section id="matches" className="px-4 py-10 scroll-mt-12">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-2 mb-1">
-          <Trophy className="w-5 h-5 text-blue-400" />
+          <Trophy className="w-5 h-5 text-[var(--accent-400)]" />
           <h2 className="text-white font-bold text-2xl">Match Center</h2>
         </div>
         <p className="text-gray-500 text-sm mb-6">
@@ -1404,16 +1462,16 @@ function UpcomingMatchModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.15 }}
-        className="relative bg-[#071e38] border border-[#1a4a7a] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+        className="relative bg-[var(--bg-card)] border border-[var(--border-strong)] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded-full bg-[#0f2d4a] border border-[#1a4a7a] text-gray-400 hover:text-white transition-colors"
+          className="absolute top-3 right-3 w-8 h-8 inline-flex items-center justify-center rounded-full bg-[var(--border-card)] border border-[var(--border-strong)] text-gray-400 hover:text-white transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
-        <Calendar className="w-10 h-10 text-blue-400 mx-auto mb-4" />
+        <Calendar className="w-10 h-10 text-[var(--accent-400)] mx-auto mb-4" />
         <p className="text-white font-bold text-lg mb-1">{label}</p>
         <p className="text-gray-400 text-sm mb-4">
           {kickoff.toLocaleDateString(undefined, {
@@ -1443,6 +1501,20 @@ export default function WorldCupDashboard() {
   const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [initialPlayerNumber, setInitialPlayerNumber] = useState<number | null>(null);
+  const [theme, setTheme] = useState<ThemeId>("midnight");
+
+  // Restore saved theme on mount.
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("wc-theme") : null;
+    if (saved === "midnight" || saved === "pitch" || saved === "ember" || saved === "royal") {
+      setTheme(saved);
+    }
+  }, []);
+
+  const updateTheme = (t: ThemeId) => {
+    setTheme(t);
+    if (typeof window !== "undefined") localStorage.setItem("wc-theme", t);
+  };
 
   const openTeamPlayer = (teamCode: string, playerNumber: number) => {
     setInitialPlayerNumber(playerNumber);
@@ -1490,10 +1562,10 @@ export default function WorldCupDashboard() {
     selectedMatch?.type === "analytics" ? selectedMatch.fixtureId : null;
 
   return (
-    <main className="bg-[#020d1c] min-h-screen bg-aurora">
+    <main className={`min-h-screen bg-aurora theme-${theme}`}>
       <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
-        <Hero data={data} />
+        <Hero data={data} theme={theme} onThemeChange={updateTheme} />
         <StatStrip />
         <GroupsSection
           resolved={data?.groups}
@@ -1529,7 +1601,7 @@ export default function WorldCupDashboard() {
           />
         )}
 
-        <footer className="border-t border-[#071e38] py-8 px-4 text-center mt-10">
+        <footer className="border-t border-[var(--bg-card)] py-8 px-4 text-center mt-10">
           <p className="text-gray-600 text-sm">
             FIFA World Cup 2026 · USA · Canada · Mexico
           </p>

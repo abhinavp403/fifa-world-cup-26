@@ -76,7 +76,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
       {/* Scroll progress bar — pinned to left edge, vertical */}
       <div className="fixed top-0 left-0 bottom-0 z-[60] w-[2px] pointer-events-none hidden lg:block">
         <div
-          className="w-full bg-gradient-to-b from-blue-600 via-cyan-300 to-emerald-400"
+          className="w-full bg-gradient-to-b from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
           style={{ height: `${progress * 100}%` }}
         />
       </div>
@@ -84,7 +84,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
       {/* Mobile/tablet — thin top progress bar */}
       <div className="fixed top-0 left-0 right-0 z-[60] h-[2px] pointer-events-none lg:hidden">
         <div
-          className="h-full bg-gradient-to-r from-blue-600 via-cyan-300 to-emerald-400"
+          className="h-full bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
@@ -96,12 +96,12 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
           href="#overview"
           onClick={(e) => scrollTo(e, "#overview")}
           title={isModalOpen ? "WC26 Dashboard" : undefined}
-          className={`flex items-center bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl py-3 pointer-events-auto hover:border-blue-500/40 transition-all duration-300 ${
+          className={`flex items-center bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl py-3 pointer-events-auto hover:border-[var(--accent-500)]/40 transition-all duration-300 ${
             isModalOpen ? "px-3 gap-0 justify-center" : "px-3 gap-3"
           }`}
         >
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/30 to-emerald-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
-            <Trophy className="w-4 h-4 text-blue-200" />
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-500)]/30 to-[var(--grad-to)]/20 border border-[var(--accent-500)]/40 flex items-center justify-center flex-shrink-0">
+            <Trophy className="w-4 h-4 text-[var(--accent-300)]" />
           </span>
           <div
             className={`overflow-hidden transition-all duration-300 ${
@@ -109,7 +109,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
             }`}
           >
             <p className="text-white font-bold text-sm leading-none tracking-tight whitespace-nowrap pr-1">
-              WC<span className="text-blue-400">26</span>
+              WC<span className="text-[var(--accent-400)]">26</span>
             </p>
             <p className="text-gray-500 text-[10px] mt-1 tracking-widest uppercase whitespace-nowrap">
               Dashboard
@@ -118,7 +118,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
         </a>
 
         {/* Links */}
-        <nav className="flex flex-col gap-1 bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl p-2 pointer-events-auto">
+        <nav className="flex flex-col gap-1 bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl p-2 pointer-events-auto">
           {NAV_LINKS.map(({ label, href, icon: Icon }) => {
             const isActive = active === href;
             return (
@@ -131,8 +131,8 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
                   isModalOpen ? "gap-0 px-2.5 justify-center" : "gap-3 px-3"
                 } ${
                   isActive
-                    ? "bg-blue-500/15 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-[#0f2d4a]"
+                    ? "bg-[var(--accent-500)]/15 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-[var(--border-card)]"
                 }`}
               >
                 {/* Active indicator bar */}
@@ -143,7 +143,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
                 />
                 <Icon
                   className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                    isActive ? "text-blue-300" : "text-gray-500 group-hover:text-gray-300"
+                    isActive ? "text-[var(--accent-300)]" : "text-gray-500 group-hover:text-gray-300"
                   }`}
                 />
                 <span
@@ -160,7 +160,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
 
         {/* Footer pill — kickoff date */}
         <div
-          className={`flex items-center bg-[#071e38]/70 backdrop-blur-md border border-[#0f2d4a] rounded-2xl py-2.5 pointer-events-auto transition-all duration-300 ${
+          className={`flex items-center bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl py-2.5 pointer-events-auto transition-all duration-300 ${
             isModalOpen ? "px-3 gap-0 justify-center" : "px-3 gap-2"
           }`}
         >
@@ -180,7 +180,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
 
       {/* ── Mobile / tablet — bottom-left floating rail ──────────────────── */}
       <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 lg:hidden">
-        <div className="flex items-center gap-1 bg-[#071e38]/80 backdrop-blur-md border border-[#0f2d4a] rounded-full px-2 py-1.5 shadow-lg shadow-black/40">
+        <div className="flex items-center gap-1 bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-card)] rounded-full px-2 py-1.5 shadow-lg shadow-black/40">
           {NAV_LINKS.map(({ label, href, icon: Icon }) => {
             const isActive = active === href;
             return (
@@ -191,7 +191,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
                 aria-label={label}
                 className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
                   isActive
-                    ? "bg-blue-500/20 border border-blue-500/40 text-blue-200"
+                    ? "bg-[var(--accent-500)]/20 border border-[var(--accent-500)]/40 text-[var(--accent-300)]"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
