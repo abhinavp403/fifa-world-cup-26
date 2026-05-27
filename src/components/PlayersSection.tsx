@@ -199,12 +199,23 @@ function SearchResultCard({
 // Main section
 // ─────────────────────────────────────────────────────────────────────────────
 
+type PositionFilter = "ALL" | "GK" | "DEF" | "MID" | "FWD";
+
+const POSITION_TAGS: { id: PositionFilter; label: string }[] = [
+  { id: "ALL", label: "All"  },
+  { id: "GK",  label: "GK"   },
+  { id: "DEF", label: "DEF"  },
+  { id: "MID", label: "MID"  },
+  { id: "FWD", label: "FWD"  },
+];
+
 export default function PlayersSection({
   onPlayerClick,
 }: {
   onPlayerClick: (teamCode: string, playerNumber: number) => void;
 }) {
   const [search, setSearch] = useState("");
+  const [posFilter, setPosFilter] = useState<PositionFilter>("ALL");
 
   const allPlayers = useMemo<PlayerWithTeam[]>(() => {
     const result: PlayerWithTeam[] = [];
@@ -230,9 +241,10 @@ export default function PlayersSection({
     if (q.length === 0) return [];
     return allPlayers
       .filter((p) => p.player.name.toLowerCase().includes(q))
+      .filter((p) => posFilter === "ALL" || p.player.position === posFilter)
       .sort((a, b) => a.player.name.localeCompare(b.player.name))
       .slice(0, 25);
-  }, [search, allPlayers]);
+  }, [search, posFilter, allPlayers]);
 
   return (
     <section id="players" className="px-4 py-10 scroll-mt-12">
@@ -281,24 +293,46 @@ export default function PlayersSection({
             Search any World Cup player by name to see their base stats
           </p>
 
-          <div className="relative max-w-md mb-5">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 pointer-events-none" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Type a player name…"
-              className="w-full bg-[var(--bg-darker)] border border-[var(--border-card)] rounded-full pl-10 pr-9 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-[var(--accent-500)]/50"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 pointer-events-none" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Type a player name…"
+                className="w-full bg-[var(--bg-darker)] border border-[var(--border-card)] rounded-full pl-10 pr-9 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:border-[var(--accent-500)]/50"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {POSITION_TAGS.map((t) => {
+                const active = posFilter === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setPosFilter(t.id)}
+                    className={`text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-full border transition-colors ${
+                      active
+                        ? "bg-[var(--accent-500)] border-[var(--accent-500)] text-white"
+                        : "bg-[var(--bg-darker)] border-[var(--border-card)] text-gray-400 hover:text-white hover:border-[var(--border-strong)]"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {search.trim().length > 0 && (
