@@ -1,8 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Goal, Sparkles, ShieldCheck, Search, X, User } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  Goal,
+  Sparkles,
+  ShieldCheck,
+  Search,
+  X,
+  User,
+  ArrowLeftRight,
+  Check,
+} from "lucide-react";
 
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
 import { SQUADS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
@@ -151,17 +161,30 @@ function LeaderCard({
 function SearchResultCard({
   p,
   onClick,
+  isInCompare,
+  compareDisabled,
+  onToggleCompare,
 }: {
-  p:       PlayerWithTeam;
-  onClick: () => void;
+  p:               PlayerWithTeam;
+  onClick:         () => void;
+  isInCompare:     boolean;
+  compareDisabled: boolean;
+  onToggleCompare: () => void;
 }) {
   const pos = p.player.position;
+  const dimmed = compareDisabled && !isInCompare;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="w-full text-left bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl px-4 py-3 flex items-center gap-4 hover:border-[var(--border-strong)] hover:bg-[var(--bg-card)]/90 transition-colors cursor-pointer"
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className={`w-full text-left bg-[var(--bg-card)]/60 border rounded-xl px-4 py-3 flex items-center gap-4 transition-colors cursor-pointer ${
+        isInCompare
+          ? "border-[var(--accent-500)]/60 bg-[var(--accent-500)]/[0.06]"
+          : "border-[var(--border-card)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-card)]/90"
+      } ${dimmed ? "opacity-40" : ""}`}
     >
       <PlayerAvatar player={p.player} color={p.teamColor} size={48} />
       <div className="flex-1 min-w-0">
@@ -191,7 +214,257 @@ function SearchResultCard({
           <span>Age {p.player.age}</span>
         </div>
       </div>
-    </button>
+
+      {/* Compare checkbox */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); if (!dimmed) onToggleCompare(); }}
+        disabled={dimmed}
+        aria-pressed={isInCompare}
+        aria-label={isInCompare ? "Remove from comparison" : "Add to comparison"}
+        title={dimmed ? `Only ${pos === "GK" ? "GKs" : pos + "s"} of the same position can be compared` : isInCompare ? "Selected for comparison" : "Add to comparison"}
+        className={`flex-shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-all ${
+          isInCompare
+            ? "bg-[var(--accent-500)] border-[var(--accent-500)] text-white"
+            : "bg-[var(--bg-darker)]/60 border-[var(--border-card)] text-gray-600 hover:border-[var(--accent-500)]/50 hover:text-[var(--accent-400)]"
+        } ${dimmed ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+      >
+        {isInCompare ? <Check className="w-4 h-4" /> : <ArrowLeftRight className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Player comparison — position-aware stat config + modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+type CompareStat = {
+  label: string;
+  get:   (s: PlayerStats) => number | null;
+  fmt?:  (v: number) => string;
+};
+
+const fmtPct = (v: number) => `${v}%`;
+const fmtRtg = (v: number) => v.toFixed(1);
+const safePct = (num: number, den: number) =>
+  den > 0 ? Math.round((num / den) * 100) : null;
+
+const COMPARE_STATS: Record<"GK" | "DEF" | "MID" | "FWD", CompareStat[]> = {
+  GK: [
+    { label: "Appearances",     get: (s) => s.appearances },
+    { label: "Minutes Played",  get: (s) => s.minutesPlayed },
+    { label: "Saves",           get: (s) => s.saves },
+    { label: "Clean Sheets",    get: (s) => s.cleanSheets },
+    { label: "Goals Conceded",  get: (s) => s.goalsConceded },
+    { label: "Penalties Saved", get: (s) => s.penaltySaved },
+    { label: "Save %",          get: (s) => safePct(s.saves, s.saves + s.goalsConceded), fmt: fmtPct },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+  ],
+  DEF: [
+    { label: "Appearances",     get: (s) => s.appearances },
+    { label: "Minutes Played",  get: (s) => s.minutesPlayed },
+    { label: "Goals",           get: (s) => s.goals },
+    { label: "Assists",         get: (s) => s.assists },
+    { label: "Key Passes",      get: (s) => s.keyPasses },
+    { label: "Tackles",         get: (s) => s.tackles },
+    { label: "Interceptions",   get: (s) => s.interceptions },
+    { label: "Duels Won",       get: (s) => s.duelsWon },
+    { label: "Dribbles",        get: (s) => s.dribbles },
+    { label: "Total Passes",    get: (s) => s.passes },
+    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+  ],
+  MID: [
+    { label: "Appearances",     get: (s) => s.appearances },
+    { label: "Minutes Played",  get: (s) => s.minutesPlayed },
+    { label: "Goals",           get: (s) => s.goals },
+    { label: "Assists",         get: (s) => s.assists },
+    { label: "Shots",           get: (s) => s.shots },
+    { label: "Key Passes",      get: (s) => s.keyPasses },
+    { label: "Dribbles",        get: (s) => s.dribbles },
+    { label: "Interceptions",   get: (s) => s.interceptions },
+    { label: "Total Passes",    get: (s) => s.passes },
+    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+  ],
+  FWD: [
+    { label: "Appearances",     get: (s) => s.appearances },
+    { label: "Minutes Played",  get: (s) => s.minutesPlayed },
+    { label: "Goals",           get: (s) => s.goals },
+    { label: "Assists",         get: (s) => s.assists },
+    { label: "Shots",           get: (s) => s.shots },
+    { label: "Shots on Target", get: (s) => s.shotsOnTarget },
+    { label: "Shooting Acc %",  get: (s) => safePct(s.shotsOnTarget, s.shots), fmt: fmtPct },
+    { label: "Key Passes",      get: (s) => s.keyPasses },
+    { label: "Dribbles",        get: (s) => s.dribbles },
+    { label: "Penalty Goals",   get: (s) => s.penaltyScored },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+  ],
+};
+
+function ComparePlayerHeader({ p }: { p: PlayerWithTeam }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-3 px-2">
+      <PlayerAvatar player={p.player} color={p.teamColor} size={72} />
+      <div className="min-w-0">
+        <p className="text-white font-black text-lg leading-tight truncate">
+          {p.player.name}
+        </p>
+        <div className="flex items-center justify-center gap-1.5 mt-1 text-xs text-gray-400">
+          <span className="text-base leading-none">{p.teamFlag}</span>
+          <span className="font-semibold">{p.teamName}</span>
+        </div>
+        <p className="text-gray-600 text-[11px] mt-0.5 truncate">{p.player.club}</p>
+        <div className="flex items-center justify-center gap-1.5 mt-1.5">
+          <span
+            className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded"
+            style={{ color: p.teamColor, backgroundColor: p.teamColor + "22" }}
+          >
+            {p.player.position}
+          </span>
+          <span className="text-gray-700 text-[10px]">·</span>
+          <span className="text-gray-500 text-[10px]">Age {p.player.age}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompareStatRow({
+  label,
+  valA,
+  valB,
+  fmt,
+}: {
+  label: string;
+  valA:  number | null;
+  valB:  number | null;
+  fmt?:  (v: number) => string;
+}) {
+  const show = (v: number | null) => (v == null ? "—" : fmt ? fmt(v) : String(v));
+  const a = valA ?? 0;
+  const b = valB ?? 0;
+  const aWins = valA != null && valB != null && a > b;
+  const bWins = valA != null && valB != null && b > a;
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-2.5 border-b border-[var(--border-row)]/60 last:border-0">
+      <p
+        className={`text-right text-base tabular-nums ${
+          aWins ? "text-white font-black" : "text-gray-500 font-semibold"
+        }`}
+      >
+        {show(valA)}
+      </p>
+      <p className="text-[10px] font-bold tracking-widest text-gray-600 uppercase whitespace-nowrap min-w-[7rem] text-center">
+        {label}
+      </p>
+      <p
+        className={`text-left text-base tabular-nums ${
+          bWins ? "text-white font-black" : "text-gray-500 font-semibold"
+        }`}
+      >
+        {show(valB)}
+      </p>
+    </div>
+  );
+}
+
+function PlayerComparisonModal({
+  players,
+  onClose,
+}: {
+  players: PlayerWithTeam[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  if (players.length !== 2) return null;
+  const [a, b] = players;
+  const pos = a.player.position as keyof typeof COMPARE_STATS;
+  const stats = COMPARE_STATS[pos] ?? [];
+
+  const sA = a.player.stats ?? null;
+  const sB = b.player.stats ?? null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6"
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="relative bg-[var(--bg-darker)] border border-[var(--border-strong)] sm:rounded-2xl w-full sm:max-w-3xl max-h-screen sm:max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
+        <div
+          className="h-1 w-full rounded-t-2xl flex-shrink-0"
+          style={{
+            background: `linear-gradient(to right, ${a.teamColor}, ${a.teamColor}33 50%, ${b.teamColor}33 50%, ${b.teamColor})`,
+          }}
+        />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="sticky top-3 float-right mr-7 z-10 w-9 h-9 inline-flex items-center justify-center rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-strong)] text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="px-4 sm:px-8 py-6">
+          <div className="flex items-center gap-2 mb-6">
+            <ArrowLeftRight className="w-4 h-4 text-[var(--accent-400)]" />
+            <span className="text-[10px] font-black tracking-widest uppercase text-[var(--accent-300)]">
+              Player Comparison · {pos}
+            </span>
+          </div>
+
+          {/* Headers */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 pb-6 mb-4 border-b border-[var(--border-card)]">
+            <ComparePlayerHeader p={a} />
+            <span className="text-gray-700 text-2xl font-black self-center px-2">vs</span>
+            <ComparePlayerHeader p={b} />
+          </div>
+
+          {/* Stat rows */}
+          <div className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl overflow-hidden">
+            {sA && sB ? (
+              stats.map((stat) => (
+                <CompareStatRow
+                  key={stat.label}
+                  label={stat.label}
+                  valA={stat.get(sA)}
+                  valB={stat.get(sB)}
+                  fmt={stat.fmt}
+                />
+              ))
+            ) : (
+              <p className="text-gray-600 text-sm py-8 text-center">
+                Stats not available yet.
+              </p>
+            )}
+          </div>
+
+          <p className="text-gray-700 text-[10px] text-center mt-4">
+            WC 2026 tournament stats only · Updates once matches begin
+          </p>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -216,6 +489,26 @@ export default function PlayersSection({
 }) {
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<PositionFilter>("ALL");
+  const [compare, setCompare] = useState<PlayerWithTeam[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+
+  const lockedPosition = compare[0]?.player.position ?? null;
+
+  const playerKey = (p: PlayerWithTeam) => `${p.teamCode}-${p.player.number}`;
+  const isInCompare = (p: PlayerWithTeam) =>
+    compare.some((x) => playerKey(x) === playerKey(p));
+
+  const toggleCompare = (p: PlayerWithTeam) => {
+    setCompare((prev) => {
+      const exists = prev.find((x) => playerKey(x) === playerKey(p));
+      if (exists) return prev.filter((x) => playerKey(x) !== playerKey(p));
+      if (prev.length >= 2) return prev;
+      if (prev.length > 0 && prev[0].player.position !== p.player.position) return prev;
+      return [...prev, p];
+    });
+  };
+
+  const clearCompare = () => setCompare([]);
 
   const allPlayers = useMemo<PlayerWithTeam[]>(() => {
     const result: PlayerWithTeam[] = [];
@@ -290,7 +583,8 @@ export default function PlayersSection({
         <div className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-2xl p-5">
           <h3 className="text-white font-bold text-base mb-1">Player Search</h3>
           <p className="text-gray-500 text-xs mb-4">
-            Search any World Cup player by name to see their base stats
+            Search by name to view a player&apos;s stats, or pick two from the same
+            position to compare them side-by-side
           </p>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
@@ -335,6 +629,63 @@ export default function PlayersSection({
             </div>
           </div>
 
+          {/* Compare tray */}
+          {compare.length > 0 && (
+            <div className="bg-[var(--bg-darker)]/60 border border-[var(--accent-500)]/30 rounded-xl p-3 mb-5 flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] font-black tracking-widest uppercase text-[var(--accent-300)] inline-flex items-center gap-1.5">
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                Comparing {compare.length}/2 · {lockedPosition}
+              </span>
+              <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                {compare.map((p) => (
+                  <div
+                    key={playerKey(p)}
+                    className="inline-flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-full pl-2 pr-1 py-1"
+                  >
+                    <span className="text-sm leading-none">{p.teamFlag}</span>
+                    <span className="text-white text-xs font-semibold truncate max-w-[10rem]">
+                      {p.player.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleCompare(p)}
+                      className="ml-0.5 w-5 h-5 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+                      aria-label={`Remove ${p.player.name}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {compare.length < 2 && (
+                  <span className="text-gray-600 text-[11px] italic">
+                    + add one more {lockedPosition === "GK" ? "GK" : `${lockedPosition}`}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  disabled={compare.length !== 2}
+                  onClick={() => setShowCompareModal(true)}
+                  className={`text-xs font-bold tracking-wider uppercase px-3 py-1.5 rounded-full transition-colors ${
+                    compare.length === 2
+                      ? "bg-[var(--accent-500)] text-white hover:brightness-110"
+                      : "bg-[var(--bg-card)] text-gray-600 cursor-not-allowed"
+                  }`}
+                >
+                  Compare
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCompare}
+                  className="text-gray-500 hover:text-white text-xs font-semibold transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           {search.trim().length > 0 && (
             <>
               {searchResults.length === 0 ? (
@@ -347,13 +698,22 @@ export default function PlayersSection({
                     {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
                   </p>
                   <div className="space-y-2">
-                    {searchResults.map((p) => (
-                      <SearchResultCard
-                        key={`${p.teamCode}-${p.player.number}`}
-                        p={p}
-                        onClick={() => onPlayerClick(p.teamCode, p.player.number)}
-                      />
-                    ))}
+                    {searchResults.map((p) => {
+                      const selected = isInCompare(p);
+                      const positionMismatch =
+                        lockedPosition != null && p.player.position !== lockedPosition;
+                      const slotsFull = compare.length >= 2 && !selected;
+                      return (
+                        <SearchResultCard
+                          key={`${p.teamCode}-${p.player.number}`}
+                          p={p}
+                          isInCompare={selected}
+                          compareDisabled={positionMismatch || slotsFull}
+                          onToggleCompare={() => toggleCompare(p)}
+                          onClick={() => onPlayerClick(p.teamCode, p.player.number)}
+                        />
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -361,6 +721,13 @@ export default function PlayersSection({
           )}
         </div>
       </div>
+
+      {showCompareModal && compare.length === 2 && (
+        <PlayerComparisonModal
+          players={compare}
+          onClose={() => setShowCompareModal(false)}
+        />
+      )}
     </section>
   );
 }
