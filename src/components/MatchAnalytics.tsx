@@ -71,8 +71,17 @@ function StatCard({
 }) {
   const h = typeof homeValue === "number" ? homeValue : parseFloat(String(homeValue)) || 0;
   const a = typeof awayValue === "number" ? awayValue : parseFloat(String(awayValue)) || 0;
-  const homeWins = h > a;
-  const awayWins = a > h;
+  const homeMuted = h < a;
+  const awayMuted = a < h;
+
+  // Both numbers use the theme accent — the lower side just runs at lower
+  // opacity so the cards feel cohesive across all themes. The `stat-num`
+  // class lets the light theme flip these to a neutral black instead of
+  // a blue accent.
+  const numCls = (muted: boolean) =>
+    `text-lg md:text-xl font-bold leading-none stat-num ${
+      muted ? "opacity-40" : ""
+    }`;
 
   return (
     <div className="bg-[var(--border-card)]/60 border border-[var(--border-strong)] rounded-lg p-3">
@@ -83,22 +92,14 @@ function StatCard({
         </span>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <div
-          className={`text-lg md:text-xl font-bold leading-none ${
-            homeWins ? "text-[var(--accent-300)]" : "text-white/70"
-          }`}
-        >
+        <div className={numCls(homeMuted)}>
           {homeValue}
-          {unit && <span className="text-xs text-gray-500 ml-0.5">{unit}</span>}
+          {unit && <span className="text-xs text-gray-500 ml-0.5 opacity-80">{unit}</span>}
         </div>
         <div className="text-gray-600 text-xs">vs</div>
-        <div
-          className={`text-lg md:text-xl font-bold leading-none ${
-            awayWins ? "text-rose-300" : "text-white/70"
-          }`}
-        >
+        <div className={numCls(awayMuted)}>
           {awayValue}
-          {unit && <span className="text-xs text-gray-500 ml-0.5">{unit}</span>}
+          {unit && <span className="text-xs text-gray-500 ml-0.5 opacity-80">{unit}</span>}
         </div>
       </div>
     </div>
@@ -496,7 +497,7 @@ function FormationPitch({
 
       <svg
         viewBox="0 0 100 100"
-        className="w-full bg-gradient-to-b from-[#0f4a3a] to-[var(--bg-card)] rounded-xl border aspect-square shadow-lg"
+        className="w-full bg-gradient-to-b from-[#0f4a3a] to-[#082b1f] rounded-xl border aspect-square shadow-lg"
         style={{ borderColor: teamColor + "4d" }}
       >
         <rect width="100" height="100" fill="none" stroke="#3ba68f" strokeWidth="0.8" />
@@ -562,7 +563,7 @@ function FormationPitch({
         {(["GK", "DEF", "MID", "FWD"] as const).map((k) => (
           <div
             key={k}
-            className="border rounded-lg px-3 py-2 text-xs"
+            className="border rounded-lg px-3 py-2 text-xs text-gray-300"
             style={{
               backgroundColor: teamColor + "33",
               borderColor: teamColor + "4d",

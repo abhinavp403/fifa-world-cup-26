@@ -142,6 +142,19 @@ body {
     radial-gradient(38rem 28rem at 82% 92%, rgba(192, 132, 252, 0.18), transparent 70%);
 }
 
+/* ── Stat-card numbers — themed accent (light override added with the light theme) ── */
+.stat-num { color: var(--accent-400); }
+
+/* Active filter / segmented-tag pill — themed accent + subtle glow (all themes) */
+.tag-active {
+  background-color: var(--accent-500);
+  border-color:     var(--accent-500);
+  /* Subtle themed glow + faint inner highlight to lift the pill off the row */
+  box-shadow:
+    0 3px 10px -3px color-mix(in srgb, var(--accent-500) 45%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
 .bg-aurora::after {
   z-index: -1;
   background-image:

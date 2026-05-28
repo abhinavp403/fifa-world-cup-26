@@ -618,7 +618,7 @@ export default function PlayersSection({
                     onClick={() => setPosFilter(t.id)}
                     className={`text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-full border transition-colors ${
                       active
-                        ? "bg-[var(--accent-500)] border-[var(--accent-500)] text-white"
+                        ? "tag-active text-white"
                         : "bg-[var(--bg-darker)] border-[var(--border-card)] text-gray-400 hover:text-white hover:border-[var(--border-strong)]"
                     }`}
                   >
