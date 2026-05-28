@@ -76,7 +76,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
       {/* Scroll progress bar — pinned to left edge, vertical */}
       <div className="fixed top-0 left-0 bottom-0 z-[60] w-[2px] pointer-events-none hidden lg:block">
         <div
-          className="w-full bg-gradient-to-b from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
+          className="w-full progress-bar bg-gradient-to-b from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
           style={{ height: `${progress * 100}%` }}
         />
       </div>
@@ -84,7 +84,7 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
       {/* Mobile/tablet — thin top progress bar */}
       <div className="fixed top-0 left-0 right-0 z-[60] h-[2px] pointer-events-none lg:hidden">
         <div
-          className="h-full bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
+          className="h-full progress-bar bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
           style={{ width: `${progress * 100}%` }}
         />
       </div>

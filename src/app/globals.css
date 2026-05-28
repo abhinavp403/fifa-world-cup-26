@@ -110,6 +110,22 @@ body {
   --grad-to:        #f0abfc;
 }
 
+.theme-light {
+  --bg-card:        #ffffff;
+  --bg-card-deep:   #f8fafc;
+  --bg-darker:      #f1f5f9;
+  --border-card:    #e2e8f0;
+  --border-strong:  #cbd5e1;
+  --border-row:     #e2e8f0;
+  --accent-300:     #60a5fa; /* blue-400 */
+  --accent-400:     #3b82f6; /* blue-500 */
+  --accent-500:     #2563eb; /* blue-600 */
+  --grad-from:      #2563eb;
+  --grad-via:       #0891b2;
+  --grad-to:        #059669;
+  color:            #0f172a; /* default text for descendants without explicit color */
+}
+
 .theme-midnight.bg-aurora { background-color: #020d1c; }
 
 .theme-pitch.bg-aurora { background-color: #03140a; }
@@ -153,6 +169,93 @@ body {
   box-shadow:
     0 3px 10px -3px color-mix(in srgb, var(--accent-500) 45%, transparent),
     inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+/* ── Light theme — aurora + inverted text scale ─────────────────────────── */
+
+.theme-light.bg-aurora { background-color: #f8fafc; }
+.theme-light.bg-aurora::before {
+  background:
+    radial-gradient(38rem 28rem at 12% 8%,  rgba(59, 130, 246, 0.18), transparent 65%),
+    radial-gradient(36rem 30rem at 88% 14%, rgba(16, 185, 129, 0.14), transparent 65%),
+    radial-gradient(42rem 32rem at 50% 42%, rgba(99, 102, 241, 0.14), transparent 70%),
+    radial-gradient(40rem 30rem at 18% 78%, rgba(236, 72, 153, 0.10), transparent 70%),
+    radial-gradient(38rem 28rem at 82% 92%, rgba(34, 211, 238, 0.12), transparent 70%);
+}
+.theme-light.bg-aurora::after {
+  background-image:
+    radial-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+/* Flip the gray text scale so white→near-black, gray-300→dark, gray-700→very pale */
+.theme-light .text-white      { color: #0f172a; }
+.theme-light .text-gray-100   { color: #0f172a; }
+.theme-light .text-gray-200   { color: #1e293b; }
+.theme-light .text-gray-300   { color: #334155; }
+.theme-light .text-gray-400   { color: #475569; }
+.theme-light .text-gray-500   { color: #64748b; }
+.theme-light .text-gray-600   { color: #94a3b8; }
+.theme-light .text-gray-700   { color: #cbd5e1; }
+
+/* Hover/divider overlays — flip white-tints to slate-900-tints */
+.theme-light .hover\:bg-white\/\[0\.025\]:hover { background-color: rgb(15 23 42 / 0.025); }
+.theme-light .hover\:bg-white\/\[0\.04\]:hover  { background-color: rgb(15 23 42 / 0.04); }
+.theme-light .hover\:bg-white\/\[0\.06\]:hover  { background-color: rgb(15 23 42 / 0.06); }
+.theme-light .hover\:bg-white\/10:hover         { background-color: rgb(15 23 42 / 0.08); }
+.theme-light .hover\:border-white\/30:hover     { border-color: rgb(15 23 42 / 0.2); }
+
+/* Empty rating-badge slot — bg-gray-700/40 fades to invisible on white */
+.theme-light .bg-gray-700\/40 { background-color: rgb(100 116 139 / 0.18); } /* slate-500 tint */
+
+/* Pale "200" tints used on translucent colored pills become invisible on white.
+   Darken to "700" tones so they read clearly while keeping the same hue. */
+.theme-light .text-emerald-200 { color: #047857; } /* emerald-700 */
+.theme-light .text-red-200     { color: #b91c1c; } /* red-700     */
+.theme-light .text-amber-200   { color: #b45309; } /* amber-700   */
+.theme-light .text-sky-200     { color: #0369a1; } /* sky-700     */
+.theme-light .text-rose-200    { color: #be123c; } /* rose-700    */
+
+/* Stat-card numbers — neutral black instead of blue accent on white */
+.theme-light .stat-num { color: #0f172a; }
+
+/* Active pill — neutral black on white (keeps white label text) */
+.theme-light .tag-active {
+  background-color: #0f172a;
+  border-color:     #0f172a;
+  box-shadow:
+    0 3px 8px -3px rgb(15 23 42 / 0.22),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+.theme-light .tag-active.text-white { color: #ffffff; }
+
+/* Scroll progress bar — gradient cyan stop in the middle reads washed-out on
+   white, so in the light theme replace it with a solid dark slate line. */
+.theme-light .progress-bar {
+  background: #0f172a !important;
+}
+
+/* Native browser scrollbar — barely visible on white in light mode.
+   Style it on <html> so it applies to the page-level scrollbar. */
+html.theme-light {
+  scrollbar-color: #334155 #e2e8f0; /* Firefox: thumb track */
+  scrollbar-width: thin;
+}
+html.theme-light::-webkit-scrollbar {
+  width:  12px;
+  height: 12px;
+}
+html.theme-light::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+html.theme-light::-webkit-scrollbar-thumb {
+  background-color: #334155; /* slate-700 — much darker for clear visibility */
+  border-radius: 6px;
+  border: 3px solid #e2e8f0; /* creates the "padded" thumb look */
+}
+html.theme-light::-webkit-scrollbar-thumb:hover {
+  background-color: #1e293b; /* slate-800 on hover */
 }
 
 .bg-aurora::after {

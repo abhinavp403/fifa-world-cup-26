@@ -274,13 +274,14 @@ function ChampionCard({ champion }: { champion: Team }) {
 // Theme picker
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ThemeId = "midnight" | "pitch" | "ember" | "royal";
+export type ThemeId = "midnight" | "pitch" | "ember" | "royal" | "light";
 
 const THEMES: { id: ThemeId; label: string; swatch: string }[] = [
   { id: "midnight", label: "Midnight", swatch: "#3b82f6" },
   { id: "pitch",    label: "Pitch",    swatch: "#22c55e" },
   { id: "ember",    label: "Ember",    swatch: "#f97316" },
   { id: "royal",    label: "Royal",    swatch: "#a855f7" },
+  { id: "light",    label: "Light",    swatch: "#f1f5f9" },
 ];
 
 function ThemePicker({
@@ -306,9 +307,14 @@ function ThemePicker({
               aria-label={`Use ${t.label} theme`}
               title={t.label}
               className={`w-5 h-5 rounded-full transition-all ${
-                active ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--bg-card)]" : "hover:scale-110"
+                active
+                  ? "ring-2 ring-[var(--accent-400)] ring-offset-2 ring-offset-[var(--bg-card)]"
+                  : "hover:scale-110"
               }`}
-              style={{ backgroundColor: t.swatch }}
+              style={{
+                backgroundColor: t.swatch,
+                boxShadow: t.id === "light" ? "inset 0 0 0 1px rgba(0,0,0,0.2)" : undefined,
+              }}
             />
           );
         })}
@@ -1507,7 +1513,13 @@ export default function WorldCupDashboard() {
   // Restore saved theme on mount.
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("wc-theme") : null;
-    if (saved === "midnight" || saved === "pitch" || saved === "ember" || saved === "royal") {
+    if (
+      saved === "midnight" ||
+      saved === "pitch" ||
+      saved === "ember" ||
+      saved === "royal" ||
+      saved === "light"
+    ) {
       setTheme(saved);
     }
   }, []);
@@ -1516,6 +1528,15 @@ export default function WorldCupDashboard() {
     setTheme(t);
     if (typeof window !== "undefined") localStorage.setItem("wc-theme", t);
   };
+
+  // Mirror the current theme class onto <html> so global elements outside
+  // <main> (e.g. the native browser scrollbar) can be styled per theme.
+  useEffect(() => {
+    const root = document.documentElement;
+    const ALL_THEMES = ["midnight", "pitch", "ember", "royal", "light"] as const;
+    ALL_THEMES.forEach((t) => root.classList.remove(`theme-${t}`));
+    root.classList.add(`theme-${theme}`);
+  }, [theme]);
 
   const openTeamPlayer = (teamCode: string, playerNumber: number) => {
     setInitialPlayerNumber(playerNumber);
