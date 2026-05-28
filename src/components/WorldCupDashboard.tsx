@@ -33,6 +33,7 @@ import KnockoutBracket from "@/components/KnockoutBracket";
 import MatchAnalytics from "@/components/MatchAnalytics";
 import PlayerDashboard from "@/components/PlayerDashboard";
 import PlayersSection from "@/components/PlayersSection";
+import TeamComparison from "@/components/TeamComparison";
 import { SQUADS } from "@/lib/squads";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
@@ -1578,6 +1579,11 @@ export default function WorldCupDashboard() {
           live={hasLiveBracket}
           onMatchClick={handleMatchClick}
         />
+        <section className="px-4 pt-0 pb-4 scroll-mt-12">
+          <div className="max-w-7xl mx-auto">
+            <TeamComparison payload={data} />
+          </div>
+        </section>
         <PlayersSection onPlayerClick={openTeamPlayer} />
         <HostCitiesSection />
         <MatchCenter

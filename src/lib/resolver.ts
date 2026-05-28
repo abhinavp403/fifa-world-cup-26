@@ -260,6 +260,9 @@ export function resolveBracket(matches: FDMatch[] | null): {
         date: fd.utcDate,
         slot1: slotFromFD(fd.homeTeam, m.slot1),
         slot2: slotFromFD(fd.awayTeam, m.slot2),
+        homeScore: fd.score.fullTime.home,
+        awayScore: fd.score.fullTime.away,
+        status: fd.status,
       } satisfies Match;
     });
 

@@ -23,6 +23,9 @@ export type Match = {
   fixtureId?: number;  // api-football fixture id — populated once known
   slot1: Slot;
   slot2: Slot;
+  homeScore?: number | null; // populated once played
+  awayScore?: number | null;
+  status?: string;     // FD status (SCHEDULED, IN_PLAY, FINISHED, …)
 };
 
 export type Round = {
