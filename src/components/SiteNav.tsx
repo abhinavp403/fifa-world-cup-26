@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   Trophy,
@@ -86,6 +87,22 @@ export default function SiteNav({ isModalOpen = false }: { isModalOpen?: boolean
         <div
           className="h-full progress-bar bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
           style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+
+      {/* ── Mascots — fixed top-left, above the sidebar ──────────────────── */}
+      <div
+        className={`fixed left-4 top-4 z-50 hidden lg:block transition-all duration-300 ${
+          isModalOpen ? "-translate-x-[calc(100%+2rem)] opacity-0" : "translate-x-0 opacity-100"
+        }`}
+      >
+        <Image
+          src="/worldcupmascots.png"
+          alt="FIFA World Cup 2026 mascots — Maple, Zayu and Clutch"
+          width={812}
+          height={667}
+          priority
+          className="w-48 h-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
         />
       </div>
 
