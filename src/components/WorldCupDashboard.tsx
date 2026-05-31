@@ -1428,6 +1428,13 @@ type WorldCupPayload = {
   bracket: Round[];
   thirdPlace: Match;
   champion: Team | null;
+  teamFixtureStats: Record<string, {
+    possession: number; corners: number; matches: number;
+    shots: number; shotsOnTarget: number; fouls: number; offsides: number;
+    yellowCards: number; redCards: number; saves: number;
+    passes: number; passesAccurate: number;
+    keyPasses: number; tackles: number; interceptions: number;
+  }>;
 };
 
 // Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.

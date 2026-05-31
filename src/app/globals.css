@@ -161,6 +161,23 @@ body {
 /* ── Stat-card numbers — themed accent (light override added with the light theme) ── */
 .stat-num { color: var(--accent-400); }
 
+/* Canvas chart palette — read via getComputedStyle in the draw functions
+   so canvas (which can't inherit CSS classes) still picks up the theme. */
+:root,
+.theme-midnight,
+.theme-pitch,
+.theme-ember,
+.theme-royal {
+  --chart-text:  #c8daf0; /* number labels next to bars */
+  --chart-muted: #3a5070; /* axis labels, central stat names */
+  --chart-grid:  #1a2a3e; /* radar grid lines */
+}
+.theme-light {
+  --chart-text:  #0f172a; /* near-black on white card */
+  --chart-muted: #64748b; /* slate-500 muted */
+  --chart-grid:  #cbd5e1; /* slate-300 light grid */
+}
+
 /* Active filter / segmented-tag pill — themed accent + subtle glow (all themes) */
 .tag-active {
   background-color: var(--accent-500);

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ArrowLeftRight, Trophy } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Trophy, BarChart3 } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS, type Team } from "@/lib/worldcup";
 import { SQUADS } from "@/lib/squads";
 import type { Round, Match } from "@/lib/bracket";
 import type { ResolvedGroup } from "@/lib/resolver";
+import TeamStatsModal from "@/components/TeamStatsModal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -16,9 +17,16 @@ export type TeamComparisonPayload = {
   groups:    ResolvedGroup[];
   bracket:   Round[];
   champion:  Team | null;
+  teamFixtureStats?: Record<string, {
+    possession: number; corners: number; matches: number;
+    shots: number; shotsOnTarget: number; fouls: number; offsides: number;
+    yellowCards: number; redCards: number; saves: number;
+    passes: number; passesAccurate: number;
+    keyPasses: number; tackles: number; interceptions: number;
+  }>;
 } | null;
 
-type TeamStats = {
+export type TeamStats = {
   played:        number;
   wins:          number;
   draws:         number;
@@ -28,6 +36,25 @@ type TeamStats = {
   cleanSheets:   number;
   stage:         string;
   topScorer:     { name: string; goals: number } | null;
+  // Aggregated from individual player stats (sums across the squad)
+  shots:         number;
+  shotsOnTarget: number;
+  fouls:         number;
+  yellowCards:   number;
+  redCards:      number;
+  keyPasses:     number;
+  tackles:       number;
+  interceptions: number;
+  saves:         number;
+  // Passing — totals from player stats. Pass accuracy is derived as
+  // passesAccurate / passes * 100 by the consumer.
+  passes:        number;
+  passesAccurate: number;
+  // Team-level fixture stats — not yet wired up. Need
+  // /fixtures/statistics aggregation across each team's tournament
+  // matches (api-football); 0 until that pipeline exists.
+  possession:    number; // average possession % (0–100)
+  corners:       number; // total corners taken
 };
 
 const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
@@ -68,7 +95,7 @@ function stageLabel(short: string | null): string {
   }
 }
 
-function computeTeamStats(
+export function computeTeamStats(
   teamCode: string,
   payload:  TeamComparisonPayload,
 ): TeamStats {
@@ -76,6 +103,11 @@ function computeTeamStats(
     played: 0, wins: 0, draws: 0, losses: 0,
     goalsScored: 0, goalsConceded: 0, cleanSheets: 0,
     stage: "Yet to play", topScorer: null,
+    shots: 0, shotsOnTarget: 0, fouls: 0,
+    yellowCards: 0, redCards: 0, keyPasses: 0,
+    tackles: 0, interceptions: 0, saves: 0,
+    passes: 0, passesAccurate: 0,
+    possession: 0, corners: 0,
   };
 
   if (payload) {
@@ -117,19 +149,56 @@ function computeTeamStats(
     }
   }
 
-  // ── Top scorer from squad ──
+  // ── Squad-level aggregates (top scorer + team totals from player stats) ──
   const squad = SQUADS[teamCode];
   if (squad) {
     for (const player of squad.players) {
-      const goals = player.stats?.goals ?? 0;
+      const s = player.stats;
+      const goals = s?.goals ?? 0;
       if (!stats.topScorer || goals > stats.topScorer.goals) {
         stats.topScorer = { name: player.name, goals };
       }
+      if (!s) continue;
+      stats.shots          += s.shots;
+      stats.shotsOnTarget  += s.shotsOnTarget;
+      stats.fouls          += s.foulsCommitted;
+      stats.yellowCards    += s.yellowCards;
+      stats.redCards       += s.redCards;
+      stats.keyPasses      += s.keyPasses;
+      stats.tackles        += s.tackles;
+      stats.interceptions  += s.interceptions;
+      stats.saves          += s.saves;
+      stats.passes         += s.passes;
+      // passAccuracy stored per-player as 0–100; derive accurate-pass
+      // count to allow proper team-level weighted accuracy.
+      stats.passesAccurate += Math.round((s.passes * s.passAccuracy) / 100);
     }
     if (stats.topScorer && stats.topScorer.goals === 0) {
       // No goals yet — leave the slot empty rather than picking arbitrary player.
       stats.topScorer = null;
     }
+  }
+
+  // ── Team aggregates from api-football per-fixture pipeline ──
+  // The aggregated values are the source of truth — they're computed
+  // from each finished fixture's actual statistics + player rollups.
+  // We only overwrite when the aggregator returned data for this team
+  // (i.e. matches > 0); otherwise we keep the zeroed squad-stat fallback.
+  const fxAgg = payload?.teamFixtureStats?.[teamCode];
+  if (fxAgg && fxAgg.matches > 0) {
+    stats.possession     = fxAgg.possession;
+    stats.corners        = fxAgg.corners;
+    stats.shots          = fxAgg.shots;
+    stats.shotsOnTarget  = fxAgg.shotsOnTarget;
+    stats.fouls          = fxAgg.fouls;
+    stats.yellowCards    = fxAgg.yellowCards;
+    stats.redCards       = fxAgg.redCards;
+    stats.saves          = fxAgg.saves;
+    stats.passes         = fxAgg.passes;
+    stats.passesAccurate = fxAgg.passesAccurate;
+    stats.keyPasses      = fxAgg.keyPasses;
+    stats.tackles        = fxAgg.tackles;
+    stats.interceptions  = fxAgg.interceptions;
   }
 
   return stats;
@@ -297,11 +366,13 @@ function ComparisonTable({
   teamB,
   statsA,
   statsB,
+  onShowMore,
 }: {
-  teamA:  Team;
-  teamB:  Team;
-  statsA: TeamStats;
-  statsB: TeamStats;
+  teamA:      Team;
+  teamB:      Team;
+  statsA:     TeamStats;
+  statsB:     TeamStats;
+  onShowMore: () => void;
 }) {
   const colorA = TEAM_COLORS[teamA.code] ?? "#3b82f6";
   const colorB = TEAM_COLORS[teamB.code] ?? "#3b82f6";
@@ -335,11 +406,6 @@ function ComparisonTable({
       <StatRow label="Losses"         valA={statsA.losses}        valB={statsB.losses}        highlightHigher={false} />
       <StatRow label="Goals Scored"   valA={statsA.goalsScored}   valB={statsB.goalsScored}   />
       <StatRow label="Goals Conceded" valA={statsA.goalsConceded} valB={statsB.goalsConceded} highlightHigher={false} />
-      <StatRow
-        label="Goal Difference"
-        valA={statsA.goalsScored - statsA.goalsConceded}
-        valB={statsB.goalsScored - statsB.goalsConceded}
-      />
       <StatRow label="Clean Sheets"   valA={statsA.cleanSheets}   valB={statsB.cleanSheets}   />
       <StatRow
         label="Top Scorer"
@@ -355,6 +421,18 @@ function ComparisonTable({
           background: `linear-gradient(to right, ${colorA}, ${colorA}33 50%, ${colorB}33 50%, ${colorB})`,
         }}
       />
+
+      {/* Show more stats CTA */}
+      <div className="px-4 py-3 bg-[var(--bg-darker)]/40 border-t border-[var(--border-card)] flex items-center justify-end">
+        <button
+          type="button"
+          onClick={onShowMore}
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase px-3 py-1.5 rounded-full border bg-[var(--accent-500)]/10 border-[var(--accent-500)]/40 text-[var(--accent-300)] hover:bg-[var(--accent-500)]/20 hover:border-[var(--accent-500)]/60 transition-colors"
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          Show more stats
+        </button>
+      </div>
     </div>
   );
 }
@@ -370,6 +448,7 @@ export default function TeamComparison({
 }) {
   const [teamA, setTeamA] = useState<string | null>(null);
   const [teamB, setTeamB] = useState<string | null>(null);
+  const [showMore, setShowMore] = useState(false);
 
   const teamObjA = teamA ? ALL_TEAMS.find((t) => t.code === teamA) ?? null : null;
   const teamObjB = teamB ? ALL_TEAMS.find((t) => t.code === teamB) ?? null : null;
@@ -421,11 +500,23 @@ export default function TeamComparison({
           teamB={teamObjB}
           statsA={statsA}
           statsB={statsB}
+          onShowMore={() => setShowMore(true)}
         />
       ) : (
         <p className="text-gray-500 text-sm italic px-1 py-6 text-center">
           Pick two teams above to see the comparison table.
         </p>
+      )}
+
+      {showMore && teamObjA && teamObjB && statsA && statsB && (
+        <TeamStatsModal
+          teamA={teamObjA}
+          teamB={teamObjB}
+          statsA={statsA}
+          statsB={statsB}
+          payload={payload}
+          onClose={() => setShowMore(false)}
+        />
       )}
     </div>
   );

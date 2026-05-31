@@ -6,6 +6,9 @@ const BASE = "https://v3.football.api-sports.io";
 // Premier League competition id in API-Football.
 export const PL_LEAGUE_ID = 39;
 
+// FIFA World Cup competition id in API-Football.
+export const WC_LEAGUE_ID = 1;
+
 // Common team ids we care about.
 export const TEAM_IDS = {
   manCity: 50,
@@ -169,4 +172,14 @@ export async function getFixtureLineups(id: number) {
 
 export async function getFixturePlayers(id: number) {
   return await af<AFPlayerStats[]>(`/fixtures/players?fixture=${id}`);
+}
+
+/**
+ * List every finished fixture in a league/season — used to drive
+ * tournament-wide aggregations (possession, corners).
+ */
+export async function getFinishedLeagueFixtures(leagueId: number, season: number) {
+  return await af<AFFixtureSummary[]>(
+    `/fixtures?league=${leagueId}&season=${season}&status=FT`,
+  );
 }
