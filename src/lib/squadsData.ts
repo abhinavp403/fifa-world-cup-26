@@ -66,6 +66,26 @@ async function rest<T>(path: string): Promise<T | null> {
   }
 }
 
+// PostgREST caps a single response at 1000 rows by default, but we have
+// ~1248 players. Page through with limit/offset so every team loads.
+async function restAll<T>(pathWithSelect: string, pageSize = 1000): Promise<T[] | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON) return null;
+  const all: T[] = [];
+  let offset = 0;
+  // safety bound: 26 players × 48 teams ≈ 1248, so 5 pages is plenty
+  for (let page = 0; page < 10; page++) {
+    const sep = pathWithSelect.includes("?") ? "&" : "?";
+    const rows = await rest<T[]>(
+      `${pathWithSelect}${sep}limit=${pageSize}&offset=${offset}`,
+    );
+    if (rows == null) return all.length ? all : null;
+    all.push(...rows);
+    if (rows.length < pageSize) break; // last page
+    offset += pageSize;
+  }
+  return all;
+}
+
 /**
  * Returns the full squad map keyed by team code. Falls back to the static
  * file if Supabase isn't configured or a fetch fails — never throws.
@@ -75,7 +95,7 @@ export async function getSquads(): Promise<Record<string, Squad>> {
 
   const [teams, players] = await Promise.all([
     rest<TeamRow[]>("teams?select=code,coach"),
-    rest<PlayerRow[]>(
+    restAll<PlayerRow>(
       "players?select=team_code,name,number,position,club,age,captain,photo,stats&order=team_code,number",
     ),
   ]);
