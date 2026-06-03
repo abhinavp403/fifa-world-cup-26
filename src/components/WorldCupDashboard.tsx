@@ -34,7 +34,8 @@ import MatchAnalytics from "@/components/MatchAnalytics";
 import PlayerDashboard from "@/components/PlayerDashboard";
 import PlayersSection from "@/components/PlayersSection";
 import TeamComparison from "@/components/TeamComparison";
-import { SQUADS } from "@/lib/squads";
+import type { Squad } from "@/lib/squads";
+import { SquadsProvider, useSquads } from "@/lib/squadsContext";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
 
@@ -589,8 +590,9 @@ function TeamRow({
   team: Team;
   onTeamClick?: (code: string) => void;
 }) {
+  const squads     = useSquads();
   const tier       = rankTier(team.fifaRank);
-  const hasSquad   = !!SQUADS[team.code];
+  const hasSquad   = !!squads[team.code];
   const clickable  = hasSquad && !!onTeamClick;
 
   const inner = (
@@ -1510,7 +1512,11 @@ type SelectedMatch =
   | { type: "upcoming"; label: string; date: string }
   | null;
 
-export default function WorldCupDashboard() {
+export default function WorldCupDashboard({
+  squads,
+}: {
+  squads: Record<string, Squad>;
+}) {
   const [data, setData] = useState<WorldCupPayload | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -1591,6 +1597,7 @@ export default function WorldCupDashboard() {
     selectedMatch?.type === "analytics" ? selectedMatch.fixtureId : null;
 
   return (
+    <SquadsProvider value={squads}>
     <main className={`min-h-screen bg-aurora theme-${theme}`}>
       <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
@@ -1645,5 +1652,6 @@ export default function WorldCupDashboard() {
         </footer>
       </div>
     </main>
+    </SquadsProvider>
   );
 }

@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { X, ChevronUp, ChevronDown, ArrowLeft } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
-import { SQUADS, ZERO_STATS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
+import { ZERO_STATS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
+import { useSquads } from "@/lib/squadsContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stat column definitions per position
@@ -613,6 +614,7 @@ export default function PlayerDashboard({
   initialPlayerNumber?: number | null;
   onClose:              () => void;
 }) {
+  const squads = useSquads();
   const [selectedPlayer, setSelectedPlayer] = useState<SquadPlayer | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -620,13 +622,13 @@ export default function PlayerDashboard({
   // a specific player when one is requested (e.g. from the global search).
   useEffect(() => {
     if (teamCode && initialPlayerNumber != null) {
-      const squad = SQUADS[teamCode];
+      const squad = squads[teamCode];
       const match = squad?.players.find((p) => p.number === initialPlayerNumber);
       setSelectedPlayer(match ?? null);
     } else {
       setSelectedPlayer(null);
     }
-  }, [teamCode, initialPlayerNumber]);
+  }, [teamCode, initialPlayerNumber, squads]);
 
   // Scroll modal to top whenever the view changes
   useEffect(() => {
@@ -651,7 +653,7 @@ export default function PlayerDashboard({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose, selectedPlayer, initialPlayerNumber]);
 
-  const squad = teamCode ? SQUADS[teamCode]                            : null;
+  const squad = teamCode ? squads[teamCode]                            : null;
   const team  = teamCode ? ALL_TEAMS.find((t) => t.code === teamCode) : null;
   const color = teamCode ? (TEAM_COLORS[teamCode] ?? "#3b82f6")       : "#3b82f6";
 

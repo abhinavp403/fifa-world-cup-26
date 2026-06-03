@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ArrowLeftRight, Trophy, BarChart3 } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS, type Team } from "@/lib/worldcup";
-import { SQUADS } from "@/lib/squads";
+import type { Squad } from "@/lib/squads";
+import { useSquads } from "@/lib/squadsContext";
 import type { Round, Match } from "@/lib/bracket";
 import type { ResolvedGroup } from "@/lib/resolver";
 import TeamStatsModal from "@/components/TeamStatsModal";
@@ -98,6 +99,7 @@ function stageLabel(short: string | null): string {
 export function computeTeamStats(
   teamCode: string,
   payload:  TeamComparisonPayload,
+  squads:   Record<string, Squad>,
 ): TeamStats {
   const stats: TeamStats = {
     played: 0, wins: 0, draws: 0, losses: 0,
@@ -150,7 +152,7 @@ export function computeTeamStats(
   }
 
   // ── Squad-level aggregates (top scorer + team totals from player stats) ──
-  const squad = SQUADS[teamCode];
+  const squad = squads[teamCode];
   if (squad) {
     for (const player of squad.players) {
       const s = player.stats;
@@ -446,6 +448,7 @@ export default function TeamComparison({
 }: {
   payload: TeamComparisonPayload;
 }) {
+  const squads = useSquads();
   const [teamA, setTeamA] = useState<string | null>(null);
   const [teamB, setTeamB] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
@@ -453,8 +456,8 @@ export default function TeamComparison({
   const teamObjA = teamA ? ALL_TEAMS.find((t) => t.code === teamA) ?? null : null;
   const teamObjB = teamB ? ALL_TEAMS.find((t) => t.code === teamB) ?? null : null;
 
-  const statsA = useMemo(() => (teamA ? computeTeamStats(teamA, payload) : null), [teamA, payload]);
-  const statsB = useMemo(() => (teamB ? computeTeamStats(teamB, payload) : null), [teamB, payload]);
+  const statsA = useMemo(() => (teamA ? computeTeamStats(teamA, payload, squads) : null), [teamA, payload, squads]);
+  const statsB = useMemo(() => (teamB ? computeTeamStats(teamB, payload, squads) : null), [teamB, payload, squads]);
 
   const clear = () => { setTeamA(null); setTeamB(null); };
 

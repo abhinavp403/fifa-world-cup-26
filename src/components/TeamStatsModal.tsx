@@ -20,12 +20,11 @@ import { motion } from "framer-motion";
 import { X, BarChart3, Radar, Activity, Table2, Trophy } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS, type Team } from "@/lib/worldcup";
-import { SQUADS } from "@/lib/squads";
+import { useSquads } from "@/lib/squadsContext";
 import type { TeamStats, TeamComparisonPayload } from "@/components/TeamComparison";
 import { computeTeamStats } from "@/components/TeamComparison";
 
 const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
-const TEAMS_WITH_SQUADS = ALL_TEAMS.filter((t) => SQUADS[t.code]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stat helpers
@@ -448,6 +447,7 @@ export default function TeamStatsModal({
   payload: TeamComparisonPayload;
   onClose: () => void;
 }) {
+  const squads = useSquads();
   const [tab, setTab] = useState<Tab>("cumulative");
 
   useEffect(() => {
@@ -459,8 +459,11 @@ export default function TeamStatsModal({
   // Stats for every team that has squad data — needed so the radar can
   // normalize axes across the field rather than just the two selected.
   const allStats = useMemo<TeamStats[]>(
-    () => TEAMS_WITH_SQUADS.map((t) => computeTeamStats(t.code, payload)),
-    [payload],
+    () =>
+      ALL_TEAMS.filter((t) => squads[t.code]).map((t) =>
+        computeTeamStats(t.code, payload, squads),
+      ),
+    [payload, squads],
   );
 
   const colorA = TEAM_COLORS[teamA.code] ?? "#3b82f6";

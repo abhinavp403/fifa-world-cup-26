@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
-import { SQUADS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
+import { type SquadPlayer, type PlayerStats } from "@/lib/squads";
+import { useSquads } from "@/lib/squadsContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -487,6 +488,7 @@ export default function PlayersSection({
 }: {
   onPlayerClick: (teamCode: string, playerNumber: number) => void;
 }) {
+  const squads = useSquads();
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<PositionFilter>("ALL");
   const [compare, setCompare] = useState<PlayerWithTeam[]>([]);
@@ -512,7 +514,7 @@ export default function PlayersSection({
 
   const allPlayers = useMemo<PlayerWithTeam[]>(() => {
     const result: PlayerWithTeam[] = [];
-    for (const [code, squad] of Object.entries(SQUADS)) {
+    for (const [code, squad] of Object.entries(squads)) {
       const team = ALL_TEAMS.find((t) => t.code === code);
       if (!team) continue;
       const teamColor = TEAM_COLORS[code] ?? "#3b82f6";
@@ -527,7 +529,7 @@ export default function PlayersSection({
       }
     }
     return result;
-  }, []);
+  }, [squads]);
 
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
