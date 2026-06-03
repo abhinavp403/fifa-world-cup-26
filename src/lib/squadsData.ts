@@ -17,7 +17,12 @@
 
 import "server-only";
 
-import { SQUADS as STATIC_SQUADS, type Squad, type SquadPlayer } from "@/lib/squads";
+import {
+  SQUADS as STATIC_SQUADS,
+  type Squad,
+  type SquadPlayer,
+  type PlayerStats,
+} from "@/lib/squads";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -35,6 +40,7 @@ type PlayerRow = {
   age: number;
   captain: boolean;
   photo: string | null;
+  stats: PlayerStats | null;
 };
 
 async function rest<T>(path: string): Promise<T | null> {
@@ -70,7 +76,7 @@ export async function getSquads(): Promise<Record<string, Squad>> {
   const [teams, players] = await Promise.all([
     rest<TeamRow[]>("teams?select=code,coach"),
     rest<PlayerRow[]>(
-      "players?select=team_code,name,number,position,club,age,captain,photo&order=team_code,number",
+      "players?select=team_code,name,number,position,club,age,captain,photo,stats&order=team_code,number",
     ),
   ]);
 
@@ -95,8 +101,25 @@ export async function getSquads(): Promise<Record<string, Squad>> {
       age: p.age,
       ...(p.captain ? { captain: true } : {}),
       ...(p.photo ? { photo: p.photo } : {}),
+      ...(p.stats ? { stats: p.stats } : {}),
     };
     squad.players.push(player);
   }
   return map;
+}
+
+// Per-team aggregated fixture stats (possession, corners, …), written by the
+// stats-sync cron into the team_stats table. Read here so /api/worldcup serves
+// them instantly instead of fanning out to api-football on every request.
+type TeamStatsRow = { team_code: string; data: Record<string, number> };
+
+export async function getTeamFixtureStats(): Promise<
+  Record<string, Record<string, number>> | null
+> {
+  if (squadsSource === "static") return null;
+  const rows = await rest<TeamStatsRow[]>("team_stats?select=team_code,data");
+  if (!rows || rows.length === 0) return null;
+  const out: Record<string, Record<string, number>> = {};
+  for (const r of rows) out[r.team_code] = r.data;
+  return out;
 }
