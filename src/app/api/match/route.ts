@@ -20,6 +20,15 @@ import {
   type AFPlayerStats,
   type AFStatistic,
 } from "@/lib/apiFootball";
+import {
+  getS7Event,
+  getS7Incidents,
+  getS7Lineups,
+  getS7Statistics,
+  type S7Incident,
+  type S7LineupSide,
+  type S7StatPeriod,
+} from "@/lib/sportApi7";
 
 export const revalidate = 300;
 
@@ -295,11 +304,239 @@ function classifyEvent(e: AFEvent): MatchEvent["type"] {
   return "other";
 }
 
+// ── sportapi7 (Sofascore via RapidAPI) source ───────────────────────────────
+// Maps the Sofascore event/statistics/lineups/incidents payloads into the same
+// MatchPayload shape so the analytics UI renders identically to api-football.
+
+const S7_LOGO = (id: number) =>
+  `https://img.sofascore.com/api/v1/team/${id}/image`;
+
+function s7TeamStat(
+  stats: S7StatPeriod[] | null,
+  key: string,
+  side: "home" | "away",
+): number {
+  if (!stats) return 0;
+  const all = stats.find((p) => p.period === "ALL");
+  if (!all) return 0;
+  for (const g of all.groups) {
+    const item = g.statisticsItems.find((i) => i.key === key);
+    if (item) return (side === "home" ? item.homeValue : item.awayValue) ?? 0;
+  }
+  return 0;
+}
+
+function buildS7Side(
+  ev: NonNullable<Awaited<ReturnType<typeof getS7Event>>>,
+  side: "home" | "away",
+  stats: S7StatPeriod[] | null,
+  lineup: S7LineupSide | undefined,
+  incidents: S7Incident[] | null,
+): MatchSide {
+  const t = side === "home" ? ev.homeTeam : ev.awayTeam;
+  const team = { id: t.id, name: t.name, logo: S7_LOGO(t.id) };
+  const goals =
+    (side === "home" ? ev.homeScore.current : ev.awayScore.current) ?? 0;
+
+  const passes = s7TeamStat(stats, "passes", side);
+  const accurate = s7TeamStat(stats, "accuratePasses", side);
+
+  const summary: TeamSummary = {
+    id: team.id,
+    name: team.name,
+    logo: team.logo,
+    goals,
+    shots: s7TeamStat(stats, "totalShotsOnGoal", side),
+    shotsOnTarget: s7TeamStat(stats, "shotsOnGoal", side),
+    possession: s7TeamStat(stats, "ballPossession", side),
+    passAccuracy: passes > 0 ? Math.round((accurate / passes) * 100) : 0,
+    totalPasses: passes,
+    keyPasses: 0, // summed from players below
+    fouls: s7TeamStat(stats, "fouls", side),
+    corners: s7TeamStat(stats, "cornerKicks", side),
+    yellowCards: s7TeamStat(stats, "yellowCards", side),
+    redCards: s7TeamStat(stats, "redCards", side),
+    saves: s7TeamStat(stats, "goalkeeperSaves", side),
+  };
+
+  // Goals/cards per player come from the incidents feed (not in lineup stats).
+  const goalsByPlayer = new Map<number, number>();
+  const yellowByPlayer = new Map<number, number>();
+  const redByPlayer = new Map<number, number>();
+  for (const inc of incidents ?? []) {
+    if (inc.isHome !== (side === "home")) continue;
+    if (inc.incidentType === "goal" && inc.player && inc.goalType !== "ownGoal") {
+      goalsByPlayer.set(inc.player.id, (goalsByPlayer.get(inc.player.id) ?? 0) + 1);
+    } else if (inc.incidentType === "card" && inc.player) {
+      const cls = (inc.incidentClass ?? "").toLowerCase();
+      if (cls.includes("red")) redByPlayer.set(inc.player.id, 1);
+      else yellowByPlayer.set(inc.player.id, (yellowByPlayer.get(inc.player.id) ?? 0) + 1);
+    }
+  }
+
+  const players: MatchPlayer[] = (lineup?.players ?? []).map((lp) => {
+    const s = lp.statistics ?? {};
+    const totalPass = s.totalPass ?? 0;
+    const accuratePass = s.accuratePass ?? 0;
+    return {
+      id: lp.player.id,
+      name: lp.player.name,
+      number: lp.shirtNumber ?? Number(lp.player.jerseyNumber) ?? 0,
+      position: lp.position ?? lp.player.position ?? "?",
+      rating: s.rating ?? null,
+      minutes: s.minutesPlayed ?? 0,
+      shots: s.totalShots ?? 0,
+      shotsOnTarget: s.onTargetScoringAttempt ?? 0,
+      goals: goalsByPlayer.get(lp.player.id) ?? s.goals ?? 0,
+      assists: s.goalAssist ?? 0,
+      offsides: s.totalOffside ?? 0,
+      passes: totalPass,
+      passAccuracy:
+        totalPass > 0 ? Math.round((accuratePass / totalPass) * 100) : null,
+      keyPasses: s.keyPass ?? 0,
+      tackles: s.totalTackle ?? 0,
+      interceptions: s.interceptionWon ?? 0,
+      dribbles: s.wonContest ?? 0,
+      duelsWon: s.duelWon ?? 0,
+      saves: s.saves ?? 0,
+      goalsConceded: 0, // not exposed per-player by sportapi7
+      penaltiesSaved: 0,
+      cards: {
+        yellow: yellowByPlayer.get(lp.player.id) ?? 0,
+        red: redByPlayer.get(lp.player.id) ?? 0,
+      },
+      substitute: lp.substitute,
+    };
+  });
+
+  summary.keyPasses = players.reduce((sum, p) => sum + (p.keyPasses ?? 0), 0);
+
+  // sportapi7 lineups have no positional grid — reconstruct rows from the
+  // formation string (e.g. "4-2-2-2") over the ordered starters (GK first).
+  const starters = (lineup?.players ?? []).filter((p) => !p.substitute);
+  const lines = (lineup?.formation ?? "")
+    .split("-")
+    .map((n) => parseInt(n, 10))
+    .filter((n) => Number.isFinite(n));
+  // rows = GK line + outfield lines
+  const rowSizes = [1, ...lines];
+  const yByRowIndex = [8, 28, 48, 65, 82, 90]; // own goal → opponent goal
+
+  const startXI: MatchFormationPlayer[] = [];
+  let idx = 0;
+  rowSizes.forEach((size, rowIdx) => {
+    const rowPlayers = starters.slice(idx, idx + size);
+    idx += size;
+    const n = rowPlayers.length;
+    const spread = Math.min(70, n * 15 + 5);
+    const left = (100 - spread) / 2;
+    const y = yByRowIndex[Math.min(rowIdx, yByRowIndex.length - 1)];
+    rowPlayers.forEach((rp, i) => {
+      const x = n === 1 ? 50 : left + (i * spread) / (n - 1);
+      const yFlipped = side === "away" ? 100 - y : y;
+      startXI.push({
+        id: rp.player.id,
+        name: rp.player.name,
+        number: rp.shirtNumber ?? Number(rp.player.jerseyNumber) ?? 0,
+        pos: (rp.position ?? rp.player.position ?? "M") as "G" | "D" | "M" | "F",
+        x,
+        y: yFlipped,
+      });
+    });
+  });
+  startXI.sort((a, b) => a.y - b.y);
+
+  return {
+    team,
+    stats: summary,
+    formation: lineup?.formation ?? "?",
+    startXI,
+    players,
+  };
+}
+
+async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
+  const ev = await getS7Event(id);
+  if (!ev) return null;
+
+  const [stats, lineups, incidents] = await Promise.all([
+    getS7Statistics(id),
+    getS7Lineups(id),
+    getS7Incidents(id),
+  ]);
+
+  const home = buildS7Side(ev, "home", stats, lineups?.home, incidents);
+  const away = buildS7Side(ev, "away", stats, lineups?.away, incidents);
+
+  const events: MatchEvent[] = (incidents ?? [])
+    .map((inc): MatchEvent | null => {
+      const teamId = inc.isHome ? ev.homeTeam.id : ev.awayTeam.id;
+      const minute = (inc.time ?? 0);
+      const extra = inc.addedTime && inc.addedTime < 100 ? inc.addedTime : null;
+      if (inc.incidentType === "goal") {
+        return {
+          minute, extra, type: "goal", teamId,
+          player: inc.player?.name ?? "Unknown",
+          assist: inc.assist1?.name ?? null,
+          detail: inc.goalType === "penalty" ? "Penalty" : "Goal",
+        };
+      }
+      if (inc.incidentType === "card") {
+        const cls = (inc.incidentClass ?? "").toLowerCase();
+        const isRed = cls.includes("red");
+        return {
+          minute, extra, type: isRed ? "redCard" : "yellowCard", teamId,
+          player: inc.player?.name ?? "Unknown",
+          assist: null,
+          detail: isRed ? "Red Card" : "Yellow Card",
+        };
+      }
+      if (inc.incidentType === "substitution") {
+        return {
+          minute, extra, type: "substitution", teamId,
+          player: inc.playerIn?.name ?? "Unknown",
+          assist: inc.playerOut?.name ?? null,
+          detail: "Substitution",
+        };
+      }
+      return null;
+    })
+    .filter((e): e is MatchEvent => e !== null);
+
+  return {
+    live: true,
+    fixtureId: ev.id,
+    date: new Date(ev.startTimestamp * 1000).toISOString(),
+    venue: ev.venue?.stadium?.name ?? null,
+    status: ev.status.type === "finished" ? "FT" : ev.status.description,
+    competition: ev.tournament.name,
+    round: ev.roundInfo?.round != null ? `Round ${ev.roundInfo.round}` : "",
+    home,
+    away,
+    events,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const idParam = url.searchParams.get("id");
+  const source = url.searchParams.get("source");
+
+  // sportapi7 (Sofascore via RapidAPI) — covers competitions api-football's
+  // free plan can't read, with richer per-player data.
+  if (source === "rapidapi" && idParam) {
+    const payload = await buildFromSportApi7(parseInt(idParam, 10));
+    if (!payload) {
+      return NextResponse.json(
+        { live: false, error: "No match data available", updatedAt: new Date().toISOString() },
+        { status: 200 },
+      );
+    }
+    return NextResponse.json(payload);
+  }
 
   const fixture = idParam
     ? await getFixture(parseInt(idParam, 10))

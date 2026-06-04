@@ -893,9 +893,11 @@ function KeyMomentsTimeline({
 
 export default function MatchAnalytics({
   fixtureId,
+  source,
   onClose,
 }: {
   fixtureId: number | null;
+  source?: "apifootball" | "rapidapi";
   onClose?: () => void;
 }) {
   const [data, setData] = useState<MatchPayload | null>(null);
@@ -914,7 +916,9 @@ export default function MatchAnalytics({
     setError(null);
     (async () => {
       try {
-        const res = await fetch(`/api/match?id=${fixtureId}`);
+        const res = await fetch(
+          `/api/match?id=${fixtureId}${source === "rapidapi" ? "&source=rapidapi" : ""}`,
+        );
         const json = await res.json();
         if (cancelled) return;
         if (!json.live) {
@@ -931,7 +935,7 @@ export default function MatchAnalytics({
     return () => {
       cancelled = true;
     };
-  }, [fixtureId]);
+  }, [fixtureId, source]);
 
   // Lock body scroll + listen for ESC while the dialog is open.
   useEffect(() => {

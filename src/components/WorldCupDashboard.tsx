@@ -1224,6 +1224,7 @@ function ResultsPlaceholder() {
 
 type MatchListItem = {
   fixtureId: number;
+  source?: "apifootball" | "rapidapi";
   competition: string;
   competitionNote?: string;
   date: string; // ISO
@@ -1236,8 +1237,9 @@ type MatchListItem = {
 const SAMPLE_MATCHES: MatchListItem[] = [
   {
     fixtureId: 1379275,
+    source: "apifootball",
     competition: "Premier League",
-    competitionNote: "Sample match — analytics preview",
+    competitionNote: "Sample match — via API-Football",
     date: "2026-05-13T19:00:00Z",
     venue: "Etihad Stadium",
     status: "FT",
@@ -1249,6 +1251,25 @@ const SAMPLE_MATCHES: MatchListItem[] = [
     away: {
       name: "Crystal Palace",
       logo: "https://media.api-sports.io/football/teams/52.png",
+      score: 0,
+    },
+  },
+  {
+    fixtureId: 15999228,
+    source: "rapidapi",
+    competition: "Premier League",
+    competitionNote: "Same match — via RapidAPI (Sofascore)",
+    date: "2026-05-13T19:00:00Z",
+    venue: "Etihad Stadium",
+    status: "FT",
+    home: {
+      name: "Manchester City",
+      logo: "https://img.sofascore.com/api/v1/team/17/image",
+      score: 3,
+    },
+    away: {
+      name: "Crystal Palace",
+      logo: "https://img.sofascore.com/api/v1/team/7/image",
       score: 0,
     },
   },
@@ -1396,7 +1417,7 @@ function MatchCenter({
   onSelect,
 }: {
   selectedId: number | null;
-  onSelect: (id: number) => void;
+  onSelect: (id: number, source: "apifootball" | "rapidapi") => void;
 }) {
   return (
     <section id="matches" className="px-4 py-10 scroll-mt-12">
@@ -1416,7 +1437,7 @@ function MatchCenter({
               key={m.fixtureId}
               match={m}
               active={selectedId === m.fixtureId}
-              onClick={() => onSelect(m.fixtureId)}
+              onClick={() => onSelect(m.fixtureId, m.source ?? "apifootball")}
             />
           ))}
         </div>
@@ -1518,7 +1539,7 @@ function UpcomingMatchModal({
 }
 
 type SelectedMatch =
-  | { type: "analytics"; fixtureId: number }
+  | { type: "analytics"; fixtureId: number; source: "apifootball" | "rapidapi" }
   | { type: "upcoming"; label: string; date: string }
   | null;
 
@@ -1591,7 +1612,7 @@ export default function WorldCupDashboard({
 
   const handleMatchClick = (fixtureId: number | null, label: string, date: string) => {
     if (fixtureId != null) {
-      setSelectedMatch({ type: "analytics", fixtureId });
+      setSelectedMatch({ type: "analytics", fixtureId, source: "apifootball" });
     } else {
       setSelectedMatch({ type: "upcoming", label, date });
     }
@@ -1599,12 +1620,13 @@ export default function WorldCupDashboard({
 
   const handleClose = () => setSelectedMatch(null);
 
-  // Legacy: MatchCenter still passes a plain number
-  const handleSelectMatch = (id: number) =>
-    setSelectedMatch({ type: "analytics", fixtureId: id });
+  const handleSelectMatch = (id: number, source: "apifootball" | "rapidapi") =>
+    setSelectedMatch({ type: "analytics", fixtureId: id, source });
 
   const analyticsFixtureId =
     selectedMatch?.type === "analytics" ? selectedMatch.fixtureId : null;
+  const analyticsSource =
+    selectedMatch?.type === "analytics" ? selectedMatch.source : undefined;
 
   return (
     <SquadsProvider value={squads}>
@@ -1637,6 +1659,7 @@ export default function WorldCupDashboard({
         />
         <MatchAnalytics
           fixtureId={analyticsFixtureId}
+          source={analyticsSource}
           onClose={handleClose}
         />
         <PlayerDashboard
