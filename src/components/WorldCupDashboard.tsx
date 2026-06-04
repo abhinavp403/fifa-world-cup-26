@@ -373,8 +373,18 @@ function Hero({
             <h1 className="text-white font-black text-4xl sm:text-6xl lg:text-7xl leading-[0.95] tracking-tight">
               FIFA World Cup
               <br />
-              <span className="bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)] bg-clip-text text-transparent">
-                2026
+              <span className="inline-flex items-center gap-3">
+                <span className="bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)] bg-clip-text text-transparent">
+                  2026
+                </span>
+                <Image
+                  src="/worldcupmascots.png"
+                  alt="FIFA World Cup 2026 mascots — Maple, Zayu and Clutch"
+                  width={812}
+                  height={667}
+                  priority
+                  className="w-14 sm:w-16 lg:w-20 h-auto drop-shadow-[0_3px_10px_rgba(0,0,0,0.3)]"
+                />
               </span>
             </h1>
 
