@@ -208,38 +208,40 @@ const POSITION_COLS: Record<PosType, ColDef[]> = {
   GK: [
     { abbr: "SV",  get: p => String(p.saves) },
     { abbr: "SV%", get: p => { const t = p.saves + p.goalsConceded; return t > 0 ? `${Math.round((p.saves / t) * 100)}%` : "—"; } },
-    { abbr: "GC",  get: p => String(p.goalsConceded) },
+    { abbr: "P",   get: p => String(p.passes) },
+    { abbr: "GP",  get: p => p.goalsPrevented != null ? p.goalsPrevented.toFixed(2) : "—" },
   ],
   DEF: [
     { abbr: "P",  get: p => String(p.passes) },
     { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
     { abbr: "T",  get: p => String(p.tackles) },
     { abbr: "I",  get: p => String(p.interceptions) },
-    { abbr: "D",  get: p => String(p.duelsWon) },
-    { abbr: "KP", get: p => String(p.keyPasses) },
+    { abbr: "DW", get: p => String(p.duelsWon) },
+    { abbr: "CL", get: p => String(p.clearances) },
   ],
   MID: [
     { abbr: "P",  get: p => String(p.passes) },
     { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
-    { abbr: "KP", get: p => String(p.keyPasses) },
+    { abbr: "Sh", get: p => String(p.shots) },
     { abbr: "T",  get: p => String(p.tackles) },
-    { abbr: "I",  get: p => String(p.interceptions) },
-    { abbr: "D",  get: p => String(p.duelsWon) },
+    { abbr: "xA", get: p => p.expectedAssists != null ? p.expectedAssists.toFixed(2) : "—" },
+    { abbr: "DW", get: p => String(p.duelsWon) },
   ],
   FWD: [
+    { abbr: "P",   get: p => String(p.passes) },
+    { abbr: "P%",  get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
     { abbr: "Sh",  get: p => String(p.shots) },
     { abbr: "SoT", get: p => String(p.shotsOnTarget) },
-    { abbr: "P",   get: p => String(p.passes) },
-    { abbr: "Dr",  get: p => String(p.dribbles) },
+    { abbr: "xG",  get: p => p.expectedGoals != null ? p.expectedGoals.toFixed(2) : "—" },
     { abbr: "Off", get: p => String(p.offsides) },
-    { abbr: "P%",  get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
   ],
   SUB: [
     { abbr: "P",  get: p => String(p.passes) },
     { abbr: "P%", get: p => p.passAccuracy != null ? `${p.passAccuracy}%` : "—" },
+    { abbr: "Sh", get: p => String(p.shots) },
     { abbr: "T",  get: p => String(p.tackles) },
-    { abbr: "Dr", get: p => String(p.dribbles) },
-    { abbr: "D",  get: p => String(p.duelsWon) },
+    { abbr: "TC", get: p => String(p.touches) },
+    { abbr: "DW", get: p => String(p.duelsWon) },
   ],
 };
 
@@ -326,8 +328,17 @@ function CompactPositionGroup({
         </span>
         <div className="flex items-center">
           {cols.map((c) => (
-            <span key={c.abbr} className={`${colW} text-center text-[9px] font-bold text-gray-600`}>
-              {c.abbr}
+            <span
+              key={c.abbr}
+              className={`${colW} text-center text-[9px] font-bold text-gray-600 cursor-default`}
+              title={
+                c.abbr === "GP" ? "Goals Prevented: xG faced minus goals conceded. Positive = keeper outperformed xG." :
+                c.abbr === "xG" ? "Expected Goals: probability of scoring based on shot quality and position." :
+                c.abbr === "xA" ? "Expected Assists: probability that a pass leads to a goal, based on the resulting shot." :
+                undefined
+              }
+            >
+              {c.abbr}{(c.abbr === "GP" || c.abbr === "xG" || c.abbr === "xA") ? " ⓘ" : ""}
             </span>
           ))}
           <span className="w-11 text-center text-[9px] font-bold text-gray-600">RTG</span>
@@ -345,9 +356,11 @@ function CompactPositionGroup({
 function TeamRatingsPanel({
   side,
   teamColor,
+  source,
 }: {
   side: MatchSide;
   teamColor: string;
+  source?: "apifootball" | "rapidapi";
 }) {
 
   const starters = side.players.filter((p) => !p.substitute);
@@ -370,6 +383,15 @@ function TeamRatingsPanel({
           <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: teamColor }}>
             {side.team.name}
           </span>
+          {source && (
+            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
+              source === "rapidapi"
+                ? "bg-violet-500/10 border-violet-500/30 text-violet-300"
+                : "bg-blue-500/10 border-blue-500/30 text-blue-300"
+            }`}>
+              {source === "rapidapi" ? "Sofascore" : "API-Football"}
+            </span>
+          )}
         </div>
         {avg && (
           <span className="text-gray-500 text-xs">
@@ -390,11 +412,12 @@ function TeamRatingsPanel({
 
 function ColumnLegend() {
   const items: [string, string][] = [
-    ["SV", "Saves"], ["SV%", "Save %"], ["GC", "Goals Conc."],
-    ["P", "Passes"], ["P%", "Pass Acc"], ["KP", "Key Passes"],
-    ["T", "Tackles"], ["I", "Interceptions"], ["D", "Duels Won"],
+    ["SV", "Saves"], ["SV%", "Save %"], ["GP", "Goals Prevented"],
+    ["P", "Passes"], ["P%", "Pass Acc"],
+    ["T", "Tackles"], ["I", "Interceptions"], ["DW", "Duels Won"],
+    ["CL", "Clearances"], ["xA", "Exp. Assists"], ["xG", "Exp. Goals"],
     ["Sh", "Shots"], ["SoT", "Shots on Target"], ["Off", "Offsides"],
-    ["Dr", "Dribbles"], ["RTG", "Rating"],
+    ["TC", "Touches"], ["RTG", "Rating"],
   ];
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
@@ -1215,8 +1238,8 @@ export default function MatchAnalytics({
           <ColumnLegend />
           <div className="mt-5" />
           <div className="grid lg:grid-cols-2 gap-6">
-            <TeamRatingsPanel side={home} teamColor={homeColor} />
-            <TeamRatingsPanel side={away} teamColor={awayColor} />
+            <TeamRatingsPanel side={home} teamColor={homeColor} source={source} />
+            <TeamRatingsPanel side={away} teamColor={awayColor} source={source} />
           </div>
         </motion.div>
 

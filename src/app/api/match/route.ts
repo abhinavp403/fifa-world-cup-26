@@ -79,6 +79,12 @@ export type MatchPlayer = {
   saves: number;
   goalsConceded: number;
   penaltiesSaved: number;
+  goalsPrevented: number | null;
+  expectedGoals: number | null;
+  foulsCommitted: number;
+  clearances: number;
+  touches: number;
+  expectedAssists: number | null;
   cards: { yellow: number; red: number };
   substitute: boolean;
 };
@@ -242,6 +248,12 @@ function buildSide(
       saves: s?.goals.saves ?? 0,
       goalsConceded: s?.goals.conceded ?? 0,
       penaltiesSaved: s?.penalty?.saved ?? 0,
+      goalsPrevented: null,
+      expectedGoals: null,
+      foulsCommitted: s?.fouls.committed ?? 0,
+      clearances: 0,
+      touches: 0,
+      expectedAssists: null,
       cards: { yellow: s?.cards.yellow ?? 0, red: s?.cards.red ?? 0 },
       substitute: s?.games.substitute ?? false,
     };
@@ -416,6 +428,12 @@ function buildS7Side(
       saves: s.saves ?? 0,
       goalsConceded: 0, // not exposed per-player by sportapi7
       penaltiesSaved: 0,
+      goalsPrevented: s.goalsPrevented ?? null,
+      expectedGoals: s.expectedGoals ?? null,
+      foulsCommitted: s.fouls ?? 0,
+      clearances: s.totalClearance ?? 0,
+      touches: s.touches ?? 0,
+      expectedAssists: s.expectedAssists ?? null,
       cards: {
         yellow: yellowByPlayer.get(lp.player.id) ?? 0,
         red: redByPlayer.get(lp.player.id) ?? 0,
