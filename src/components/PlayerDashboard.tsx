@@ -8,6 +8,7 @@ import { X, ChevronUp, ChevronDown, ArrowLeft } from "lucide-react";
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
 import { ZERO_STATS, type SquadPlayer, type PlayerStats } from "@/lib/squads";
 import { useSquads } from "@/lib/squadsContext";
+import Flag from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stat column definitions per position
@@ -732,9 +733,7 @@ export default function PlayerDashboard({
         className="flex items-center gap-5 mb-8 pb-6 border-b"
         style={{ borderBottomColor: color + "33" }}
       >
-        <span className="text-6xl sm:text-7xl leading-none flex-shrink-0 drop-shadow-lg">
-          {team.flag}
-        </span>
+        <Flag code={team.code} size="lg" className="w-20 h-14 sm:w-24 sm:h-16 drop-shadow-lg" />
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight truncate">
             {team.name}

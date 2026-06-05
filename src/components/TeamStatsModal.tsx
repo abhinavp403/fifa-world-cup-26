@@ -23,6 +23,7 @@ import { GROUPS, TEAM_COLORS, type Team } from "@/lib/worldcup";
 import { useSquads } from "@/lib/squadsContext";
 import type { TeamStats, TeamComparisonPayload } from "@/components/TeamComparison";
 import { computeTeamStats } from "@/components/TeamComparison";
+import Flag from "@/components/Flag";
 
 const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
 
@@ -468,8 +469,8 @@ export default function TeamStatsModal({
 
   const colorA = TEAM_COLORS[teamA.code] ?? "#3b82f6";
   const colorB = TEAM_COLORS[teamB.code] ?? "#3b82f6";
-  const labelA = `${teamA.flag} ${teamA.name}`;
-  const labelB = `${teamB.flag} ${teamB.name}`;
+  const labelA = teamA.name;
+  const labelB = teamB.name;
 
   // Stable draw callbacks per tab so the canvas redraws on resize.
   const drawCumulative = useMemo(
@@ -530,13 +531,13 @@ export default function TeamStatsModal({
             </p>
             <div className="flex items-center gap-4 flex-wrap text-xl">
               <div className="flex items-center gap-2.5">
-                <span className="text-3xl leading-none">{teamA.flag}</span>
+                <Flag code={teamA.code} size="lg" />
                 <span className="text-white font-bold text-2xl">{teamA.name}</span>
                 {statsA.stage === "Champions" && <Trophy className="w-5 h-5 text-amber-400" />}
               </div>
               <span className="text-gray-600 text-sm font-black tracking-widest uppercase">vs</span>
               <div className="flex items-center gap-2.5">
-                <span className="text-3xl leading-none">{teamB.flag}</span>
+                <Flag code={teamB.code} size="lg" />
                 <span className="text-white font-bold text-2xl">{teamB.name}</span>
                 {statsB.stage === "Champions" && <Trophy className="w-5 h-5 text-amber-400" />}
               </div>

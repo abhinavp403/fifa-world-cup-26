@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Swords, Trophy, Medal } from "lucide-react";
 
 import { BRACKET, THIRD_PLACE_MATCH, type Match, type Round, type Slot } from "@/lib/bracket";
+import Flag from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A single match card — two slots stacked
@@ -13,7 +14,7 @@ function SlotRow({ slot }: { slot: Slot }) {
   if (slot.team) {
     return (
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="text-lg leading-none">{slot.team.flag}</span>
+        <Flag code={slot.team.code} size="sm" />
         <span className="text-white text-sm font-semibold truncate flex-1">
           {slot.team.name}
         </span>

@@ -17,6 +17,7 @@ import {
 import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
 import { type SquadPlayer, type PlayerStats } from "@/lib/squads";
 import { useSquads } from "@/lib/squadsContext";
+import Flag from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -137,7 +138,7 @@ function LeaderCard({
                   {p.player.name}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-sm leading-none">{p.teamFlag}</span>
+                  <Flag code={p.teamCode} size="sm" />
                   <span className="text-gray-600 text-[10px] truncate">{p.teamName}</span>
                 </div>
               </div>
@@ -207,7 +208,7 @@ function SearchResultCard({
           </span>
         </div>
         <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500 flex-wrap">
-          <span className="text-sm leading-none">{p.teamFlag}</span>
+          <Flag code={p.teamCode} size="sm" />
           <span className="text-gray-400 font-semibold">{p.teamName}</span>
           <span className="text-gray-700">·</span>
           <span className="truncate">{p.player.club}</span>
@@ -313,7 +314,7 @@ function ComparePlayerHeader({ p }: { p: PlayerWithTeam }) {
           {p.player.name}
         </p>
         <div className="flex items-center justify-center gap-1.5 mt-1 text-xs text-gray-400">
-          <span className="text-base leading-none">{p.teamFlag}</span>
+          <Flag code={p.teamCode} size="sm" />
           <span className="font-semibold">{p.teamName}</span>
         </div>
         <p className="text-gray-600 text-[11px] mt-0.5 truncate">{p.player.club}</p>
@@ -644,7 +645,7 @@ export default function PlayersSection({
                     key={playerKey(p)}
                     className="inline-flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border-card)] rounded-full pl-2 pr-1 py-1"
                   >
-                    <span className="text-sm leading-none">{p.teamFlag}</span>
+                    <Flag code={p.teamCode} size="sm" />
                     <span className="text-white text-xs font-semibold truncate max-w-[10rem]">
                       {p.player.name}
                     </span>

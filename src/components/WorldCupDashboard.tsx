@@ -38,6 +38,7 @@ import type { Squad } from "@/lib/squads";
 import { SquadsProvider, useSquads } from "@/lib/squadsContext";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
+import FlagImage from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Countdown
@@ -209,7 +210,7 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
             >
               <div className="flex items-center gap-2 min-w-0 justify-end">
                 <span className="text-white font-semibold text-sm truncate">{m.home.name}</span>
-                <span className="text-xl leading-none flex-shrink-0">{m.home.flag}</span>
+                {m.home.code ? <FlagImage code={m.home.code} size="md" /> : <span className="text-xl leading-none flex-shrink-0">{m.home.flag}</span>}
               </div>
               <div className="flex flex-col items-center px-2">
                 {m.status === "FINISHED" || m.homeScore != null ? (
@@ -229,7 +230,7 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
                 </div>
               </div>
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xl leading-none flex-shrink-0">{m.away.flag}</span>
+                {m.away.code ? <FlagImage code={m.away.code} size="md" /> : <span className="text-xl leading-none flex-shrink-0">{m.away.flag}</span>}
                 <span className="text-white font-semibold text-sm truncate">{m.away.name}</span>
               </div>
             </div>
@@ -256,7 +257,7 @@ function ChampionCard({ champion }: { champion: Team }) {
           </span>
         </div>
         <div className="flex items-center gap-5">
-          <span className="text-7xl leading-none drop-shadow-lg">{champion.flag}</span>
+          <FlagImage code={champion.code} size="lg" className="w-24 h-16 drop-shadow-lg" />
           <div className="min-w-0">
             <p className="text-white font-black text-3xl sm:text-4xl leading-tight">
               {champion.name}
@@ -607,7 +608,7 @@ function TeamRow({
 
   const inner = (
     <>
-      <span className="text-2xl flex-shrink-0 leading-none">{team.flag}</span>
+      <FlagImage code={team.code} size="md" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-white font-semibold text-sm truncate">{team.name}</p>
@@ -679,7 +680,7 @@ function StandingsTable({ rows }: { rows: GroupRow[] }) {
           >
             <div className="text-gray-500 font-bold tabular-nums">{r.position}</div>
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base leading-none">{r.team.flag}</span>
+              <FlagImage code={r.team.code} size="sm" />
               <span className="text-white font-semibold truncate">
                 {r.team.code}
               </span>

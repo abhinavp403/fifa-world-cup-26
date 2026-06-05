@@ -9,6 +9,7 @@ import { useSquads } from "@/lib/squadsContext";
 import type { Round, Match } from "@/lib/bracket";
 import type { ResolvedGroup } from "@/lib/resolver";
 import TeamStatsModal from "@/components/TeamStatsModal";
+import Flag from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -256,7 +257,7 @@ function TeamPicker({
       >
         {selected ? (
           <span className="flex items-center gap-2 min-w-0">
-            <span className="text-lg leading-none">{selected.flag}</span>
+            <Flag code={selected.code} size="md" />
             <span className="text-white font-semibold truncate">{selected.name}</span>
           </span>
         ) : (
@@ -305,7 +306,7 @@ function TeamPicker({
                         : "text-gray-300 hover:bg-white/[0.04] hover:text-white"
                     }`}
                   >
-                    <span className="text-base leading-none">{t.flag}</span>
+                    <Flag code={t.code} size="sm" />
                     <span className="truncate flex-1">{t.name}</span>
                     <span className="text-[10px] text-gray-600 font-bold tracking-wider">
                       {t.code}
@@ -389,12 +390,12 @@ function ComparisonTable({
           Metric
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xl leading-none">{teamA.flag}</span>
+          <Flag code={teamA.code} size="md" />
           <span className="text-white font-bold text-sm truncate">{teamA.name}</span>
           {isChampA && <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xl leading-none">{teamB.flag}</span>
+          <Flag code={teamB.code} size="md" />
           <span className="text-white font-bold text-sm truncate">{teamB.name}</span>
           {isChampB && <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
         </div>
