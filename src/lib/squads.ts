@@ -32,6 +32,9 @@ export type PlayerStats = {
   cleanSheets:     number;
   goalsConceded:   number;
   rating:          number; // average match rating (0 = no data)
+  matchesWon:      number;
+  matchesDrawn:    number;
+  matchesLost:     number;
 };
 
 export const ZERO_STATS: PlayerStats = {
@@ -44,6 +47,7 @@ export const ZERO_STATS: PlayerStats = {
   yellowCards: 0, redCards: 0,
   saves: 0, cleanSheets: 0, goalsConceded: 0,
   rating: 0,
+  matchesWon: 0, matchesDrawn: 0, matchesLost: 0,
 };
 
 export type SquadPlayer = {

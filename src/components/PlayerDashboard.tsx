@@ -660,11 +660,16 @@ export default function PlayerDashboard({
 
   const summary = useMemo(() => {
     if (!squad) return null;
-    const p       = squad.players;
-    const avgAge  = (p.reduce((s, pl) => s + pl.age, 0) / p.length).toFixed(1);
-    const goals        = p.reduce((s, pl) => s + (pl.stats?.goals       ?? 0), 0);
-    const cleanSheets  = p.reduce((s, pl) => s + (pl.stats?.cleanSheets ?? 0), 0);
-    return { avgAge, goals, cleanSheets };
+    const p      = squad.players;
+    const avgAge = (p.reduce((s, pl) => s + pl.age, 0) / p.length).toFixed(1);
+    const goals        = p.reduce((s, pl) => s + (pl.stats?.goals        ?? 0), 0);
+    // W/D/L are team-level — use the GK's record as the team record (each GK
+    // has the same match results as the team). Fall back to 0 pre-tournament.
+    const gk = p.find((pl) => pl.position === "GK" && pl.stats);
+    const matchesWon   = gk?.stats?.matchesWon   ?? 0;
+    const matchesDrawn = gk?.stats?.matchesDrawn ?? 0;
+    const matchesLost  = gk?.stats?.matchesLost  ?? 0;
+    return { avgAge, goals, matchesWon, matchesDrawn, matchesLost };
   }, [squad]);
 
   if (teamCode == null) return null;
@@ -758,11 +763,12 @@ export default function PlayerDashboard({
       </div>
 
       {/* ── Summary strip ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        <SummaryCard label="Squad Size"   value={String(squad.players.length)} />
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-8">
         <SummaryCard label="Average Age"  value={summary.avgAge} />
-        <SummaryCard label="WC Goals"        value={String(summary.goals)} />
-        <SummaryCard label="Clean Sheets"   value={String(summary.cleanSheets)} />
+        <SummaryCard label="WC Goals"     value={String(summary.goals)} />
+        <SummaryCard label="Won"          value={String(summary.matchesWon)} />
+        <SummaryCard label="Draw"         value={String(summary.matchesDrawn)} />
+        <SummaryCard label="Lost"         value={String(summary.matchesLost)} />
       </div>
 
       {/* ── Position groups ── */}
