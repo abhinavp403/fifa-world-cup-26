@@ -1179,17 +1179,25 @@ export default function MatchAnalytics({
           </div>
           <div className="space-y-2">
             <ComparisonRow label="Possession" homeValue={home.stats.possession} awayValue={away.stats.possession} unit="%" homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Saves" homeValue={home.stats.saves} awayValue={away.stats.saves} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Shots" homeValue={home.stats.shots} awayValue={away.stats.shots} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Shots on Target" homeValue={home.stats.shotsOnTarget} awayValue={away.stats.shotsOnTarget} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="xG" homeValue={home.stats.xG} awayValue={away.stats.xG} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Total Passes" homeValue={home.stats.totalPasses} awayValue={away.stats.totalPasses} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Pass Accuracy" homeValue={home.stats.passAccuracy} awayValue={away.stats.passAccuracy} unit="%" homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Key Passes" homeValue={home.stats.keyPasses} awayValue={away.stats.keyPasses} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Crosses" homeValue={home.stats.crosses} awayValue={away.stats.crosses} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Tackles" homeValue={tackles.home} awayValue={tackles.away} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Interceptions" homeValue={intercepts.home} awayValue={intercepts.away} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Clearances" homeValue={home.stats.clearances} awayValue={away.stats.clearances} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Dribbles Completed" homeValue={dribbles.home} awayValue={dribbles.away} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Duels Won" homeValue={duelsWon.home} awayValue={duelsWon.away} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Fouls" homeValue={home.stats.fouls} awayValue={away.stats.fouls} homeColor={homeColor} awayColor={awayColor} />
             <ComparisonRow label="Corners" homeValue={home.stats.corners} awayValue={away.stats.corners} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Free Kicks" homeValue={home.stats.freeKicks} awayValue={away.stats.freeKicks} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Offsides" homeValue={home.stats.offsides} awayValue={away.stats.offsides} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Yellow Cards" homeValue={home.stats.yellowCards} awayValue={away.stats.yellowCards} homeColor={homeColor} awayColor={awayColor} />
+            <ComparisonRow label="Red Cards" homeValue={home.stats.redCards} awayValue={away.stats.redCards} homeColor={homeColor} awayColor={awayColor} />
           </div>
         </motion.div>
 

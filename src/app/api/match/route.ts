@@ -50,6 +50,11 @@ export type TeamSummary = {
   yellowCards: number;
   redCards: number;
   saves: number;
+  xG: number;
+  clearances: number;
+  freeKicks: number;
+  offsides: number;
+  crosses: number;
 };
 
 export type MatchPlayer = {
@@ -152,6 +157,11 @@ function buildTeamSummary(
     yellowCards: statNum(stats, "Yellow Cards"),
     redCards: statNum(stats, "Red Cards"),
     saves: statNum(stats, "Goalkeeper Saves"),
+    xG: 0,
+    clearances: 0,
+    freeKicks: 0,
+    offsides: 0,
+    crosses: 0,
   };
 }
 
@@ -357,6 +367,11 @@ function buildS7Side(
     yellowCards: s7TeamStat(stats, "yellowCards", side),
     redCards: s7TeamStat(stats, "redCards", side),
     saves: s7TeamStat(stats, "goalkeeperSaves", side),
+    xG: s7TeamStat(stats, "expectedGoals", side),
+    clearances: s7TeamStat(stats, "totalClearance", side),
+    freeKicks: s7TeamStat(stats, "freeKicks", side),
+    offsides: s7TeamStat(stats, "offsides", side),
+    crosses: s7TeamStat(stats, "accurateCross", side),
   };
 
   // Goals/cards per player come from the incidents feed (not in lineup stats).
