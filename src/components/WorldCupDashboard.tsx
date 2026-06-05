@@ -1236,29 +1236,10 @@ type MatchListItem = {
 
 const SAMPLE_MATCHES: MatchListItem[] = [
   {
-    fixtureId: 1379275,
-    source: "apifootball",
-    competition: "Premier League",
-    competitionNote: "Sample match — via API-Football",
-    date: "2026-05-13T19:00:00Z",
-    venue: "Etihad Stadium",
-    status: "FT",
-    home: {
-      name: "Manchester City",
-      logo: "https://media.api-sports.io/football/teams/50.png",
-      score: 3,
-    },
-    away: {
-      name: "Crystal Palace",
-      logo: "https://media.api-sports.io/football/teams/52.png",
-      score: 0,
-    },
-  },
-  {
     fixtureId: 15999228,
     source: "rapidapi",
     competition: "Premier League",
-    competitionNote: "Same match — via RapidAPI (Sofascore)",
+    competitionNote: "Sample match — analytics preview",
     date: "2026-05-13T19:00:00Z",
     venue: "Etihad Stadium",
     status: "FT",
