@@ -1031,10 +1031,10 @@ function GroupsSection({
 // Host cities
 // ─────────────────────────────────────────────────────────────────────────────
 
-const COUNTRY_FLAG: Record<string, string> = {
-  USA: "🇺🇸",
-  Canada: "🇨🇦",
-  Mexico: "🇲🇽",
+const COUNTRY_CODE: Record<string, string> = {
+  USA: "USA",
+  Canada: "CAN",
+  Mexico: "MEX",
 };
 
 const HIGHLIGHT_BADGE: Record<
@@ -1096,9 +1096,10 @@ function HostCitiesSection() {
               >
                 {/* City + flag + (mobile) stadium + badge */}
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg leading-none">
-                    {COUNTRY_FLAG[c.country] ?? "🏟️"}
-                  </span>
+                  {COUNTRY_CODE[c.country]
+                    ? <FlagImage code={COUNTRY_CODE[c.country]} size="sm" />
+                    : <span className="text-lg leading-none">🏟️</span>}
+
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-white text-sm font-semibold truncate">
