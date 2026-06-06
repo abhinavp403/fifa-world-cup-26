@@ -57,6 +57,7 @@ function cumulativeRows(a: TeamStats, b: TeamStats): Row[] {
 }
 
 function efficiencyRows(a: TeamStats, b: TeamStats): Row[] {
+  const passAcc = (t: TeamStats) => pct(t.passesAccurate, t.passes);
   return [
     { label: "Goals / game",        va: +pg(a.goalsScored, a.played).toFixed(2),
                                      vb: +pg(b.goalsScored, b.played).toFixed(2)                  },
@@ -64,12 +65,20 @@ function efficiencyRows(a: TeamStats, b: TeamStats): Row[] {
                                      vb: +pg(b.goalsConceded, b.played).toFixed(2),   inv: true   },
     { label: "Shots / game",        va: +pg(a.shots, a.played).toFixed(1),
                                      vb: +pg(b.shots, b.played).toFixed(1)                        },
-    { label: "Shots on tgt / game", va: +pg(a.shotsOnTarget, a.played).toFixed(1),
-                                     vb: +pg(b.shotsOnTarget, b.played).toFixed(1)                },
     { label: "Shot accuracy",       va: pct(a.shotsOnTarget, a.shots),
                                      vb: pct(b.shotsOnTarget, b.shots),               unit: "%"   },
-    { label: "Key passes / game",   va: +pg(a.keyPasses, a.played).toFixed(1),
-                                     vb: +pg(b.keyPasses, b.played).toFixed(1)                    },
+    { label: "Possession",          va: Math.round(a.possession),
+                                     vb: Math.round(b.possession),                   unit: "%"   },
+    { label: "Passes / game",       va: +pg(a.passes, a.played).toFixed(1),
+                                     vb: +pg(b.passes, b.played).toFixed(1)                       },
+    { label: "Pass Acc %",          va: passAcc(a),
+                                     vb: passAcc(b),                                 unit: "%"   },
+    { label: "Corners / game",      va: +pg(a.corners, a.played).toFixed(1),
+                                     vb: +pg(b.corners, b.played).toFixed(1)                      },
+    { label: "Saves / game",        va: +pg(a.saves, a.played).toFixed(1),
+                                     vb: +pg(b.saves, b.played).toFixed(1)                        },
+    { label: "Dribbles / game",     va: +pg(a.dribbles, a.played).toFixed(1),
+                                     vb: +pg(b.dribbles, b.played).toFixed(1)                     },
     { label: "Tackles / game",      va: +pg(a.tackles, a.played).toFixed(1),
                                      vb: +pg(b.tackles, b.played).toFixed(1)                      },
     { label: "Fouls / game",        va: +pg(a.fouls, a.played).toFixed(1),
@@ -344,6 +353,11 @@ function FullStatsTable({
   const passAcc = (t: TeamStats) =>
     t.passes > 0 ? `${Math.round((t.passesAccurate / t.passes) * 100)}%` : "—";
 
+  // Fixture-aggregate fields (not yet wired to a per-match aggregation
+  // pipeline — same "0 = no data" convention as Avg possession/Total corners).
+  const dash    = (v: number) => (v > 0 ? v : "—");
+  const dashPct = (v: number) => (v > 0 ? `${Math.round(v)}%` : "—");
+
   const sections: { title: string; rows: [string, string|number, string|number][] }[] = [
     {
       title: "Overall",
@@ -365,6 +379,9 @@ function FullStatsTable({
         ["Shots on target",  a.shotsOnTarget, b.shotsOnTarget],
         ["Shot accuracy",    `${pct(a.shotsOnTarget, a.shots)}%`, `${pct(b.shotsOnTarget, b.shots)}%`],
         ["Conversion rate",  `${pct(a.goalsScored, a.shots)}%`,   `${pct(b.goalsScored, b.shots)}%`],
+        ["Shots inside box",  dash(a.shotsInsideBox),  dash(b.shotsInsideBox)],
+        ["Shots outside box", dash(a.shotsOutsideBox), dash(b.shotsOutsideBox)],
+        ["Hit woodwork",      dash(a.hitWoodwork),     dash(b.hitWoodwork)],
       ],
     },
     {
@@ -377,14 +394,22 @@ function FullStatsTable({
         ["Total passes",     a.passes,        b.passes],
         ["Pass accuracy",    passAcc(a),      passAcc(b)],
         ["Key passes",       a.keyPasses,     b.keyPasses],
+        ["Long balls",       dash(a.longBalls), dash(b.longBalls)],
+        ["Throw-ins",        dash(a.throwIns),  dash(b.throwIns)],
+        ["Dispossessed",     dash(a.dispossessed),   dash(b.dispossessed)],
+        ["Dribbles %",       dashPct(a.dribblesPct), dashPct(b.dribblesPct)],
       ],
     },
     {
       title: "Defensive & Discipline",
       rows: [
         ["Clean sheets",     a.cleanSheets,   b.cleanSheets],
+        ["Saves",            a.saves,         b.saves],
         ["Tackles",          a.tackles,       b.tackles],
+        ["Tackles won %",    dashPct(a.tacklesWonPct), dashPct(b.tacklesWonPct)],
         ["Interceptions",    a.interceptions, b.interceptions],
+        ["Recoveries",       dash(a.ballRecoveries), dash(b.ballRecoveries)],
+        ["Duels won %",      dashPct(a.duelsPct),    dashPct(b.duelsPct)],
         ["Fouls committed",  a.fouls,         b.fouls],
         ["Yellow cards",     a.yellowCards,   b.yellowCards],
         ["Red cards",        a.redCards,      b.redCards],

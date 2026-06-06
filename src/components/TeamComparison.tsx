@@ -48,6 +48,7 @@ export type TeamStats = {
   tackles:       number;
   interceptions: number;
   saves:         number;
+  dribbles:      number; // summed from per-player completed dribbles
   // Passing — totals from player stats. Pass accuracy is derived as
   // passesAccurate / passes * 100 by the consumer.
   passes:        number;
@@ -57,6 +58,19 @@ export type TeamStats = {
   // matches (api-football); 0 until that pipeline exists.
   possession:    number; // average possession % (0–100)
   corners:       number; // total corners taken
+  // Team-level fixture stats — same "not yet wired up" status as
+  // possession/corners above; require a fixture-statistics aggregation
+  // pipeline (api-football or sportapi7) before these populate.
+  hitWoodwork:    number;
+  shotsInsideBox:  number;
+  shotsOutsideBox: number;
+  longBalls:       number;
+  throwIns:        number;
+  ballRecoveries:  number;
+  dispossessed:    number;
+  tacklesWonPct:   number; // 0–100
+  duelsPct:        number; // 0–100
+  dribblesPct:     number; // 0–100
 };
 
 const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
@@ -108,9 +122,12 @@ export function computeTeamStats(
     stage: "Yet to play", topScorer: null,
     shots: 0, shotsOnTarget: 0, fouls: 0,
     yellowCards: 0, redCards: 0, keyPasses: 0,
-    tackles: 0, interceptions: 0, saves: 0,
+    tackles: 0, interceptions: 0, saves: 0, dribbles: 0,
     passes: 0, passesAccurate: 0,
     possession: 0, corners: 0,
+    hitWoodwork: 0, shotsInsideBox: 0, shotsOutsideBox: 0,
+    longBalls: 0, throwIns: 0, ballRecoveries: 0, dispossessed: 0,
+    tacklesWonPct: 0, duelsPct: 0, dribblesPct: 0,
   };
 
   if (payload) {
@@ -170,6 +187,7 @@ export function computeTeamStats(
       stats.keyPasses      += s.keyPasses;
       stats.tackles        += s.tackles;
       stats.interceptions  += s.interceptions;
+      stats.dribbles       += s.dribbles;
       stats.saves          += s.saves;
       stats.passes         += s.passes;
       // passAccuracy stored per-player as 0–100; derive accurate-pass
