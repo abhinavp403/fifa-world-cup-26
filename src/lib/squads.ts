@@ -35,6 +35,21 @@ export type PlayerStats = {
   matchesWon:      number;
   matchesDrawn:    number;
   matchesLost:     number;
+  // GK — shot-stopping detail (sportapi7 / cumulative across WC matches)
+  goalsPrevented:   number; // xG faced minus goals conceded (+ = outperformed xG)
+  // DEF — extra defensive/distribution detail
+  clearances:       number;
+  errorsLeadToShot: number;
+  crosses:          number;
+  ballRecoveries:   number;
+  // DEF + MID — distribution / involvement
+  longBalls:        number;
+  // DEF + MID + FWD — on-ball involvement
+  touches:          number;
+  // MID — creativity
+  expectedAssists:  number;
+  // FWD — chance quality
+  expectedGoals:    number;
 };
 
 export const ZERO_STATS: PlayerStats = {
@@ -48,6 +63,11 @@ export const ZERO_STATS: PlayerStats = {
   saves: 0, cleanSheets: 0, goalsConceded: 0,
   rating: 0,
   matchesWon: 0, matchesDrawn: 0, matchesLost: 0,
+  goalsPrevented: 0,
+  clearances: 0, errorsLeadToShot: 0, crosses: 0, ballRecoveries: 0,
+  longBalls: 0, touches: 0,
+  expectedAssists: 0,
+  expectedGoals: 0,
 };
 
 export type SquadPlayer = {

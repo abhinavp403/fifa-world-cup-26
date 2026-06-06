@@ -501,6 +501,11 @@ function PlayerDetailView({
           <StatBlock label="Saves"           value={s.saves}         />
           <StatBlock label="Clean Sheets"    value={s.cleanSheets}   />
           <StatBlock label="Goals Conceded"  value={s.goalsConceded} />
+          <StatBlock
+            label="Goals Prevented"
+            value={s.goalsPrevented.toFixed(2)}
+            accent={s.goalsPrevented > 0 ? "#4ade80" : s.goalsPrevented < 0 ? "#f43f5e" : undefined}
+          />
           <StatBlock label="Penalties Saved" value={s.penaltySaved}  />
           <StatBlock label="Save %"          value={saveAcc !== null ? `${saveAcc}%` : "—"} />
         </StatSection>
@@ -517,6 +522,18 @@ function PlayerDetailView({
           <StatBlock label="Dribbles"      value={s.dribbles}      />
           <StatBlock label="Drb Attempts"  value={s.dribbleAttempts} />
           <StatBlock label="Dribble Succ %" value={dribbleSucc !== null ? `${dribbleSucc}%` : "—"} />
+          {pos === "DEF" && (
+            <>
+              <StatBlock label="Clearances"  value={s.clearances}    />
+              <StatBlock label="Recoveries"  value={s.ballRecoveries} />
+              <StatBlock label="Crosses"     value={s.crosses}       />
+              <StatBlock
+                label="Errors to Shot"
+                value={s.errorsLeadToShot}
+                accent={s.errorsLeadToShot > 0 ? "#f43f5e" : undefined}
+              />
+            </>
+          )}
         </StatSection>
       )}
 
@@ -540,6 +557,10 @@ function PlayerDetailView({
             label="Pass Acc %"
             value={s.passAccuracy > 0 ? `${s.passAccuracy}%` : "—"}
           />
+          {(pos === "DEF" || pos === "MID") && (
+            <StatBlock label="Long Balls" value={s.longBalls} />
+          )}
+          <StatBlock label="Touches" value={s.touches} />
         </StatSection>
       )}
 
@@ -552,14 +573,20 @@ function PlayerDetailView({
           <StatBlock label="On Target"      value={s.shotsOnTarget} />
           <StatBlock label="Shooting Acc %" value={shootingAcc !== null ? `${shootingAcc}%` : "—"} />
           <StatBlock label="Key Passes"     value={s.keyPasses}     />
+          {pos === "FWD" && (
+            <StatBlock label="Expected Goals" value={s.expectedGoals.toFixed(2)} />
+          )}
+          {pos === "MID" && (
+            <StatBlock label="Expected Assists" value={s.expectedAssists.toFixed(2)} />
+          )}
           {(pos === "MID" || pos === "FWD") && (
             <StatBlock label="Offsides" value={s.offsides} />
           )}
         </StatSection>
       )}
 
-      {/* ── Penalties (MID + FWD) ── */}
-      {(pos === "MID" || pos === "FWD") && (
+      {/* ── Penalties (only for players who have actually taken one) ── */}
+      {(s.penaltyScored + s.penaltyMissed) > 0 && (
         <StatSection title="Penalties" color={teamColor}>
           <StatBlock label="Scored"       value={s.penaltyScored}  accent={s.penaltyScored > 0 ? "#4ade80" : undefined} />
           <StatBlock label="Missed"       value={s.penaltyMissed}  accent={s.penaltyMissed > 0 ? "#f43f5e" : undefined} />
