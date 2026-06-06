@@ -5,7 +5,7 @@
  *
  * Implements four tabs:
  *   1. Cumulative Totals   — mirrored bar chart
- *   2. Profile Radar       — 6-axis spider, normalized across all teams
+ *   2. Team Profile        — dumbbell/lollipop chart, normalized across all teams
  *                            using per-game rates (so a 3-match team can be
  *                            compared fairly to a 7-match team)
  *   3. Per-Game Efficiency — mirrored bar chart, per-game rates
@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { X, BarChart3, Radar, Activity, Table2, Trophy } from "lucide-react";
+import { X, BarChart3, GitCompare, Activity, Table2, Trophy } from "lucide-react";
 
 import { GROUPS, TEAM_COLORS, type Team } from "@/lib/worldcup";
 import { useSquads } from "@/lib/squadsContext";
@@ -176,7 +176,7 @@ function drawMirroredBars(
   });
 }
 
-function drawRadar(
+function drawDumbbell(
   canvas: HTMLCanvasElement,
   a:      TeamStats,
   b:      TeamStats,
@@ -191,130 +191,142 @@ function drawRadar(
   const COL = readChartColors(canvas);
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth;
-  const H = 510;
+
+  const safeGp = (t: TeamStats) => Math.max(1, t.played);
+
+  type Metric = {
+    label:  string;
+    va:     number;
+    vb:     number;
+    values: number[];
+    fmt:    (v: number) => string;
+    invert?: boolean; // true when a lower raw value is "better" (e.g. conceded)
+  };
+
+  // Same six dimensions as before, normalized across every team with squad
+  // data — but each metric now keeps its own readable raw value/unit so the
+  // chart can label exact numbers instead of an abstract polygon shape.
+  const metrics: Metric[] = [
+    {
+      label:  "Goals / game",
+      va: a.goalsScored / safeGp(a), vb: b.goalsScored / safeGp(b),
+      values: all.map((t) => t.goalsScored / safeGp(t)),
+      fmt: (v) => v.toFixed(2),
+    },
+    {
+      label:  "Shots / game",
+      va: a.shots / safeGp(a), vb: b.shots / safeGp(b),
+      values: all.map((t) => t.shots / safeGp(t)),
+      fmt: (v) => v.toFixed(1),
+    },
+    {
+      label:  "Shot Accuracy",
+      va: pct(a.shotsOnTarget, a.shots), vb: pct(b.shotsOnTarget, b.shots),
+      values: all.map((t) => pct(t.shotsOnTarget, t.shots)),
+      fmt: (v) => `${Math.round(v)}%`,
+    },
+    {
+      label:  "Conceded / game",
+      va: a.goalsConceded / safeGp(a), vb: b.goalsConceded / safeGp(b),
+      values: all.map((t) => t.goalsConceded / safeGp(t)),
+      fmt: (v) => v.toFixed(2),
+      invert: true, // fewer conceded = stronger defense
+    },
+    {
+      label:  "Key Passes / game",
+      va: a.keyPasses / safeGp(a), vb: b.keyPasses / safeGp(b),
+      values: all.map((t) => t.keyPasses / safeGp(t)),
+      fmt: (v) => v.toFixed(1),
+    },
+    {
+      label:  "Possession",
+      va: a.possession, vb: b.possession,
+      values: all.map((t) => t.possession),
+      fmt: (v) => `${Math.round(v)}%`,
+    },
+  ];
+
+  const rng = (arr: number[]): [number, number] => {
+    const lo = Math.min(...arr), hi = Math.max(...arr);
+    return [lo, hi === lo ? hi + 1 : hi];
+  };
+  // Normalized 0–1 "strength" position along the track — always oriented so
+  // that further right = stronger, regardless of whether the raw stat is a
+  // "more is better" or "less is better" metric.
+  const strength = (v: number, [lo, hi]: [number, number], invert?: boolean) => {
+    const n = Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+    return invert ? 1 - n : n;
+  };
+
+  const rowH = 60, topPad = 54, leftPad = 142, rightPad = 28;
+  const trackW = Math.max(120, W - leftPad - rightPad);
+  const H = topPad + metrics.length * rowH + 22;
+
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.height = H + "px";
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
 
-  const cx = W / 2;
-  const cy = H / 2 - 30; // shift radar up so bottom labels don't crowd legend
-  const R  = Math.min(W * 0.34, 160);
-
-  // Six axes, normalized across all teams' per-game rates.
-  // dims: [goals/g, shots/g, shot_acc%, def_solidity, key_passes/g, possession%]
-  const safeGp = (t: TeamStats) => Math.max(1, t.played);
-  const axes = {
-    gf:   all.map((t) => t.goalsScored / safeGp(t)),
-    sh:   all.map((t) => t.shots / safeGp(t)),
-    acc:  all.map((t) => pct(t.shotsOnTarget, t.shots)),
-    def:  all.map((t) => 1 - t.goalsConceded / safeGp(t) / 3),
-    kp:   all.map((t) => t.keyPasses / safeGp(t)),
-    poss: all.map((t) => t.possession),
-  };
-  const rng = (arr: number[]): [number, number] => {
-    const lo = Math.min(...arr), hi = Math.max(...arr);
-    return [lo, hi === lo ? hi + 1 : hi];
-  };
-  const norm = (v: number, [lo, hi]: [number, number]) =>
-    Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
-
-  const dims = (t: TeamStats): number[] => [
-    norm(t.goalsScored / safeGp(t),                   rng(axes.gf)),
-    norm(t.shots / safeGp(t),                          rng(axes.sh)),
-    norm(pct(t.shotsOnTarget, t.shots),                rng(axes.acc)),
-    norm(1 - t.goalsConceded / safeGp(t) / 3,          rng(axes.def)),
-    norm(t.keyPasses / safeGp(t),                      rng(axes.kp)),
-    norm(t.possession,                                 rng(axes.poss)),
-  ];
-
-  const labels = [
-    ["Goals", "per game"],
-    ["Shot",  "Volume"],
-    ["Shot",  "Accuracy"],
-    ["Defensive", "Solidity"],
-    ["Key Passes", "per game"],
-    ["Possession"],
-  ];
-  const n = 6;
-
-  // Grid polygons
-  for (let r = 0.2; r <= 1.0001; r += 0.2) {
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
-      const x = cx + Math.cos(ang) * R * r;
-      const y = cy + Math.sin(ang) * R * r;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = COL.GRID;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-  // Radial axis lines
-  for (let i = 0; i < n; i++) {
-    const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R);
-    ctx.strokeStyle = COL.GRID;
-    ctx.stroke();
-  }
-  // Axis labels
-  ctx.fillStyle = COL.MUTED;
-  ctx.font = "13px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  for (let i = 0; i < n; i++) {
-    const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
-    const lx = cx + Math.cos(ang) * (R + 34);
-    const ly = cy + Math.sin(ang) * (R + 34);
-    labels[i].forEach((l, j) => ctx.fillText(l, lx, ly + j * 16));
-  }
-
-  // Polygon for one team
-  const drawPoly = (d: number[], color: string) => {
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
-      const x = cx + Math.cos(ang) * R * d[i];
-      const y = cy + Math.sin(ang) * R * d[i];
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fillStyle = color + "30";
-    ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    for (let i = 0; i < n; i++) {
-      const ang = (Math.PI * 2 * i) / n - Math.PI / 2;
-      ctx.beginPath();
-      ctx.arc(
-        cx + Math.cos(ang) * R * d[i],
-        cy + Math.sin(ang) * R * d[i],
-        4, 0, Math.PI * 2,
-      );
-      ctx.fillStyle = color;
-      ctx.fill();
-    }
-  };
-
-  drawPoly(dims(a), colorA);
-  drawPoly(dims(b), colorB);
-
-  // Legend at bottom — pinned a bit further down to leave room beneath
-  // the "Defensive Solidity" axis label
-  ctx.font = "bold 15px system-ui, sans-serif";
-  ctx.fillStyle = colorA;
-  ctx.textAlign = "right";
-  ctx.fillText(labelA, cx - 14, H - 22);
-  ctx.fillStyle = colorB;
+  // ── Legend + scale hint ──
+  ctx.font = "bold 14px system-ui, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText(labelB, cx + 14, H - 22);
+  ctx.fillStyle = colorA;
+  ctx.beginPath(); ctx.arc(leftPad + 6, 22, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillText(labelA, leftPad + 16, 27);
+  const wA = ctx.measureText(labelA).width;
+  const bx = leftPad + 16 + wA + 26;
+  ctx.fillStyle = colorB;
+  ctx.beginPath(); ctx.arc(bx, 22, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillText(labelB, bx + 10, 27);
+
+  ctx.fillStyle = COL.MUTED;
+  ctx.font = "11px system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("weaker  →  stronger (vs. all WC squads)", leftPad + trackW, 27);
+
+  metrics.forEach((m, i) => {
+    const y = topPad + i * rowH + rowH / 2;
+    const range = rng(m.values);
+    const sa = strength(m.va, range, m.invert);
+    const sb = strength(m.vb, range, m.invert);
+    const xA = leftPad + sa * trackW;
+    const xB = leftPad + sb * trackW;
+
+    // Row label
+    ctx.fillStyle = COL.TEXT;
+    ctx.font = "13px system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(m.label, leftPad - 18, y + 4);
+
+    // Background track
+    ctx.strokeStyle = COL.GRID;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(leftPad, y);
+    ctx.lineTo(leftPad + trackW, y);
+    ctx.stroke();
+
+    // Connector between the two dots
+    ctx.strokeStyle = COL.MUTED;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(xA, y);
+    ctx.lineTo(xB, y);
+    ctx.stroke();
+
+    // Dot + value label for A (above the line)
+    ctx.fillStyle = colorA;
+    ctx.beginPath(); ctx.arc(xA, y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.font = "11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(m.fmt(m.va), xA, y - 14);
+
+    // Dot + value label for B (below the line)
+    ctx.fillStyle = colorB;
+    ctx.beginPath(); ctx.arc(xB, y, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillText(m.fmt(m.vb), xB, y + 23);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -449,11 +461,11 @@ function FullStatsTable({
 // Main modal
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Tab = "cumulative" | "radar" | "efficiency" | "table";
+type Tab = "cumulative" | "profile" | "efficiency" | "table";
 
 const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: "cumulative", label: "Cumulative Totals", Icon: BarChart3 },
-  { id: "radar",      label: "Profile Radar",     Icon: Radar     },
+  { id: "profile",    label: "Team Profile",      Icon: GitCompare },
   { id: "efficiency", label: "Per-Game",          Icon: Activity  },
   { id: "table",      label: "Full Table",        Icon: Table2    },
 ];
@@ -482,8 +494,8 @@ export default function TeamStatsModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Stats for every team that has squad data — needed so the radar can
-  // normalize axes across the field rather than just the two selected.
+  // Stats for every team that has squad data — needed so the profile chart
+  // can normalize each metric across the field, not just the two selected.
   const allStats = useMemo<TeamStats[]>(
     () =>
       ALL_TEAMS.filter((t) => squads[t.code]).map((t) =>
@@ -509,9 +521,9 @@ export default function TeamStatsModal({
         [`${labelA} (${statsA.played}g)`, `${labelB} (${statsB.played}g)`], colorA, colorB),
     [statsA, statsB, labelA, labelB, colorA, colorB],
   );
-  const drawRadarCb = useMemo(
+  const drawProfileCb = useMemo(
     () => (cv: HTMLCanvasElement) =>
-      drawRadar(cv, statsA, statsB, allStats, labelA, labelB, colorA, colorB),
+      drawDumbbell(cv, statsA, statsB, allStats, labelA, labelB, colorA, colorB),
     [statsA, statsB, allStats, labelA, labelB, colorA, colorB],
   );
 
@@ -603,13 +615,13 @@ export default function TeamStatsModal({
             </>
           )}
 
-          {tab === "radar" && (
+          {tab === "profile" && (
             <>
               <p className="text-gray-500 text-sm italic mb-4">
-                Each axis normalized across all teams with squad data, using per-game rates — a 3-match team is comparable to a 7-match team
+                Each metric plotted on its own scale, normalized across all teams with squad data — dots show real per-game values, and the side further right is the stronger one
               </p>
               <div className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl p-5">
-                <ChartCanvas draw={drawRadarCb} />
+                <ChartCanvas draw={drawProfileCb} />
               </div>
             </>
           )}
