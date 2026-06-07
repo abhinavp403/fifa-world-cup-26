@@ -245,6 +245,12 @@ type CompareStat = {
   label: string;
   get:   (s: PlayerStats) => number | null;
   fmt?:  (v: number) => string;
+  // Present only on stats that sit on a directly-comparable bounded scale
+  // (percentages out of 100, ratings out of 10) — these are the ones plotted
+  // on the mini chart at the bottom of the comparison modal. Stats like raw
+  // counts (Goals, Tackles, Minutes Played, …) are deliberately excluded
+  // since "more" doesn't sit on a shared scale across different stats.
+  scale?: number;
 };
 
 const fmtPct = (v: number) => `${v}%`;
@@ -260,8 +266,8 @@ const COMPARE_STATS: Record<"GK" | "DEF" | "MID" | "FWD", CompareStat[]> = {
     { label: "Clean Sheets",    get: (s) => s.cleanSheets },
     { label: "Goals Conceded",  get: (s) => s.goalsConceded },
     { label: "Penalties Saved", get: (s) => s.penaltySaved },
-    { label: "Save %",          get: (s) => safePct(s.saves, s.saves + s.goalsConceded), fmt: fmtPct },
-    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+    { label: "Save %",          get: (s) => safePct(s.saves, s.saves + s.goalsConceded), fmt: fmtPct, scale: 100 },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg, scale: 10 },
   ],
   DEF: [
     { label: "Appearances",     get: (s) => s.appearances },
@@ -274,8 +280,8 @@ const COMPARE_STATS: Record<"GK" | "DEF" | "MID" | "FWD", CompareStat[]> = {
     { label: "Duels Won",       get: (s) => s.duelsWon },
     { label: "Dribbles",        get: (s) => s.dribbles },
     { label: "Total Passes",    get: (s) => s.passes },
-    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct },
-    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct, scale: 100 },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg, scale: 10 },
   ],
   MID: [
     { label: "Appearances",     get: (s) => s.appearances },
@@ -287,8 +293,8 @@ const COMPARE_STATS: Record<"GK" | "DEF" | "MID" | "FWD", CompareStat[]> = {
     { label: "Dribbles",        get: (s) => s.dribbles },
     { label: "Interceptions",   get: (s) => s.interceptions },
     { label: "Total Passes",    get: (s) => s.passes },
-    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct },
-    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+    { label: "Pass Acc %",      get: (s) => (s.passAccuracy > 0 ? s.passAccuracy : null), fmt: fmtPct, scale: 100 },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg, scale: 10 },
   ],
   FWD: [
     { label: "Appearances",     get: (s) => s.appearances },
@@ -297,11 +303,11 @@ const COMPARE_STATS: Record<"GK" | "DEF" | "MID" | "FWD", CompareStat[]> = {
     { label: "Assists",         get: (s) => s.assists },
     { label: "Shots",           get: (s) => s.shots },
     { label: "Shots on Target", get: (s) => s.shotsOnTarget },
-    { label: "Shooting Acc %",  get: (s) => safePct(s.shotsOnTarget, s.shots), fmt: fmtPct },
+    { label: "Shooting Acc %",  get: (s) => safePct(s.shotsOnTarget, s.shots), fmt: fmtPct, scale: 100 },
     { label: "Key Passes",      get: (s) => s.keyPasses },
     { label: "Dribbles",        get: (s) => s.dribbles },
     { label: "Penalty Goals",   get: (s) => s.penaltyScored },
-    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg },
+    { label: "Avg Rating",      get: (s) => (s.rating > 0 ? s.rating : null), fmt: fmtRtg, scale: 10 },
   ],
 };
 
@@ -369,6 +375,133 @@ function CompareStatRow({
       >
         {show(valB)}
       </p>
+    </div>
+  );
+}
+
+// One row of the mini rate-chart: a track with two dots (one per player)
+// connected by a line, positioned by value/scale — e.g. 71% on a 0–100 scale
+// sits at 71% along the track. Labels: A's value above its dot, B's below.
+function RateChartRow({
+  label,
+  va,
+  vb,
+  scale,
+  fmt,
+  colorA,
+  colorB,
+}: {
+  label:  string;
+  va:     number;
+  vb:     number;
+  scale:  number;
+  fmt?:   (v: number) => string;
+  colorA: string;
+  colorB: string;
+}) {
+  const show = (v: number) => (fmt ? fmt(v) : String(v));
+  const pa = Math.max(2, Math.min(98, (va / scale) * 100));
+  const pb = Math.max(2, Math.min(98, (vb / scale) * 100));
+  const lo = Math.min(pa, pb);
+  const hi = Math.max(pa, pb);
+
+  return (
+    <div className="grid grid-cols-[6.5rem_1fr] items-center gap-3 py-4">
+      <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase text-right truncate">
+        {label}
+      </p>
+      <div className="relative h-3">
+        {/* background track */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-[var(--border-card)]" />
+        {/* connector between the two dots */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-[3px] rounded-full bg-white/15"
+          style={{ left: `${lo}%`, width: `${hi - lo}%` }}
+        />
+        {/* dot + value label for player A (above) */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-[var(--bg-darker)] z-10"
+          style={{ left: `${pa}%`, background: colorA }}
+        />
+        <span
+          className="absolute -translate-x-1/2 -top-4 text-[10px] font-bold whitespace-nowrap"
+          style={{ left: `${pa}%`, color: colorA }}
+        >
+          {show(va)}
+        </span>
+        {/* dot + value label for player B (below) */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-[var(--bg-darker)] z-10"
+          style={{ left: `${pb}%`, background: colorB }}
+        />
+        <span
+          className="absolute -translate-x-1/2 -bottom-4 text-[10px] font-bold whitespace-nowrap"
+          style={{ left: `${pb}%`, color: colorB }}
+        >
+          {show(vb)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Small chart plotting only the directly-comparable, bounded-scale stats
+// (percentages out of 100, ratings out of 10) for the current position —
+// raw counts (Goals, Tackles, Minutes Played, …) are deliberately left out
+// since they don't share a common scale. Numbers above stay as the source
+// of truth; this is a quick "who's ahead and by how much" visual summary.
+function MiniRateChart({
+  stats,
+  sA,
+  sB,
+  labelA,
+  labelB,
+  colorA,
+  colorB,
+}: {
+  stats:  CompareStat[];
+  sA:     PlayerStats;
+  sB:     PlayerStats;
+  labelA: string;
+  labelB: string;
+  colorA: string;
+  colorB: string;
+}) {
+  const rows = stats
+    .filter((s): s is CompareStat & { scale: number } => s.scale != null)
+    .map((s) => ({ stat: s, va: s.get(sA), vb: s.get(sB) }))
+    .filter((r): r is { stat: CompareStat & { scale: number }; va: number; vb: number } =>
+      r.va != null && r.vb != null);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="bg-[var(--bg-card)]/60 border border-[var(--border-card)] rounded-xl px-5 pt-4 pb-2 mt-4">
+      <div className="flex items-center gap-5 mb-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: colorA }}>
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: colorA }} />
+          {labelA}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: colorB }}>
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: colorB }} />
+          {labelB}
+        </span>
+        <span className="text-gray-700 text-[10px] ml-auto">positioned by value, low → high</span>
+      </div>
+      <div className="divide-y divide-[var(--border-row)]/40">
+        {rows.map(({ stat, va, vb }) => (
+          <RateChartRow
+            key={stat.label}
+            label={stat.label}
+            va={va}
+            vb={vb}
+            scale={stat.scale}
+            fmt={stat.fmt}
+            colorA={colorA}
+            colorB={colorB}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -460,6 +593,19 @@ function PlayerComparisonModal({
               </p>
             )}
           </div>
+
+          {/* Mini chart — only the bounded-scale (%, rating) stats, plotted side by side */}
+          {sA && sB && (
+            <MiniRateChart
+              stats={stats}
+              sA={sA}
+              sB={sB}
+              labelA={a.player.name}
+              labelB={b.player.name}
+              colorA={a.teamColor}
+              colorB={b.teamColor}
+            />
+          )}
 
           <p className="text-gray-700 text-[10px] text-center mt-4">
             WC 2026 tournament stats only · Updates once matches begin
