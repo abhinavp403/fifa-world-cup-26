@@ -111,14 +111,18 @@ function formatKickoff(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function collectTodayMatches(data: WorldCupPayload | null, now: Date): TodayMatch[] {
+function formatDay(iso: string) {
+  return new Date(iso).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
+// Every tournament match (group stage + bracket), normalized and sorted by
+// kickoff. The today / upcoming collectors below just filter this.
+function allMatches(data: WorldCupPayload | null): TodayMatch[] {
   if (!data) return [];
   const out: TodayMatch[] = [];
 
-  // Group-stage matches
   data.groups.forEach((g) => {
     (g.matches ?? []).forEach((m) => {
-      if (!isToday(m.utcDate, now)) return;
       out.push({
         utcDate:   m.utcDate,
         status:    m.status,
@@ -131,10 +135,9 @@ function collectTodayMatches(data: WorldCupPayload | null, now: Date): TodayMatc
     });
   });
 
-  // Bracket matches
   data.bracket.forEach((round) => {
     round.matches.forEach((m) => {
-      if (!m.date || !isToday(m.date, now)) return;
+      if (!m.date) return;
       out.push({
         utcDate:   m.date,
         status:    "",
@@ -157,6 +160,22 @@ function collectTodayMatches(data: WorldCupPayload | null, now: Date): TodayMatc
 
   out.sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
   return out;
+}
+
+function collectTodayMatches(data: WorldCupPayload | null, now: Date): TodayMatch[] {
+  return allMatches(data).filter((m) => isToday(m.utcDate, now));
+}
+
+// The next fixtures on a future day — used as a fallback on rest days so the
+// hero card is never an empty "no matches today" dead-end mid-tournament.
+function collectUpcomingMatches(
+  data: WorldCupPayload | null,
+  now: Date,
+  limit = 3,
+): TodayMatch[] {
+  return allMatches(data)
+    .filter((m) => !isToday(m.utcDate, now) && new Date(m.utcDate).getTime() >= now.getTime())
+    .slice(0, limit);
 }
 
 function TodayStatusBadge({ status }: { status: string }) {
@@ -182,7 +201,16 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
     return () => clearInterval(t);
   }, []);
 
-  const matches = now ? collectTodayMatches(data, now) : [];
+  const todays = now ? collectTodayMatches(data, now) : [];
+  const showingToday = todays.length > 0;
+  // On rest days fall back to the next fixtures so the card stays useful.
+  const matches = showingToday ? todays : now ? collectUpcomingMatches(data, now, 3) : [];
+  const anyLive = todays.some(
+    (m) => m.status === "IN_PLAY" || m.status === "PAUSED" || m.status === "LIVE",
+  );
+  const dayNum = now
+    ? Math.floor((now.getTime() - new Date(TOURNAMENT.startDate).getTime()) / 86_400_000) + 1
+    : 0;
   const dateLabel = now
     ? now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })
     : "";
@@ -190,16 +218,19 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
   return (
     <div className="bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5">
-        <span className="text-gray-500 text-xs font-semibold tracking-widest uppercase">
-          Today&apos;s Matches
+        <span className="flex items-center gap-2 text-gray-500 text-xs font-semibold tracking-widest uppercase">
+          {anyLive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+          {showingToday ? "Today's Matches" : "Next Up"}
         </span>
-        <span className="text-[var(--accent-400)] text-xs font-semibold">{dateLabel}</span>
+        <span className="text-[var(--accent-400)] text-xs font-semibold">
+          {showingToday ? dateLabel : dayNum > 0 ? `Day ${dayNum}` : dateLabel}
+        </span>
       </div>
 
       {matches.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-400 text-sm">No matches scheduled today.</p>
-          <p className="text-gray-600 text-xs mt-1">Check back tomorrow.</p>
+          <p className="text-gray-400 text-sm">Tournament in progress.</p>
+          <p className="text-gray-600 text-xs mt-1">No upcoming fixtures to show.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -218,8 +249,8 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
                     {m.homeScore ?? 0}–{m.awayScore ?? 0}
                   </span>
                 ) : (
-                  <span className="text-gray-400 text-xs font-semibold tabular-nums">
-                    {formatKickoff(m.utcDate)}
+                  <span className="text-gray-400 text-xs font-semibold tabular-nums whitespace-nowrap">
+                    {showingToday ? formatKickoff(m.utcDate) : formatDay(m.utcDate)}
                   </span>
                 )}
                 <div className="flex items-center gap-1 mt-0.5">
