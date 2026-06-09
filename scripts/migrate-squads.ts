@@ -68,6 +68,30 @@ async function main() {
     console.log(`  …${Math.min(i + CHUNK, playerRows.length)}/${playerRows.length}`);
   }
 
+  // Prune stale players: a player renamed or removed in squads.ts leaves an
+  // orphaned row behind (upsert is purely additive), so a team can drift above
+  // 26. For each team, delete rows whose name is no longer in the current
+  // squad. Idempotent — a clean DB deletes nothing. We only ever remove
+  // genuinely-absent players (matched by name within the team), so rows that
+  // simply have no stats yet are untouched.
+  console.log("Pruning stale players …");
+  let prunedTotal = 0;
+  for (const [code, squad] of Object.entries(SQUADS)) {
+    const validNames = squad.players.map((p) => p.name);
+    const { data: pruned, error: pruneErr } = await supabase
+      .from("players")
+      .delete()
+      .eq("team_code", code)
+      .not("name", "in", `(${validNames.map((n) => `"${n.replace(/"/g, '""')}"`).join(",")})`)
+      .select("name");
+    if (pruneErr) throw pruneErr;
+    if (pruned && pruned.length) {
+      prunedTotal += pruned.length;
+      console.log(`  ${code}: removed ${pruned.length} (${pruned.map((r) => r.name).join(", ")})`);
+    }
+  }
+  console.log(`  …${prunedTotal} stale player(s) removed.`);
+
   // sanity read-back
   const { count: teamCount } = await supabase
     .from("teams")
