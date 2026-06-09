@@ -32,6 +32,11 @@ create table if not exists public.sync_state (
 );
 insert into public.sync_state (id) values (1) on conflict (id) do nothing;
 
+-- sync_state is internal bookkeeping: written only by the sync cron via the
+-- service_role key (which bypasses RLS) and never read by the client. Enable
+-- RLS with NO policies so anon/authenticated are fully denied.
+alter table public.sync_state enable row level security;
+
 -- Public read for team_stats (same as the rest of the public data).
 alter table public.team_stats enable row level security;
 drop policy if exists "public read team_stats" on public.team_stats;
