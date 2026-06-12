@@ -685,10 +685,18 @@ function TeamRow({
   );
 }
 
-function StandingsTable({ rows }: { rows: GroupRow[] }) {
+function StandingsTable({
+  rows,
+  onTeamClick,
+}: {
+  rows: GroupRow[];
+  onTeamClick?: (code: string) => void;
+}) {
+  const squads = useSquads();
+  const cols = "grid grid-cols-[1.6rem_1fr_repeat(4,1.4rem)_1.9rem] gap-1";
   return (
     <div className="mt-3 border border-[var(--border-card)] rounded-lg overflow-hidden">
-      <div className="grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 px-2 py-1.5 bg-[var(--bg-darker)]/50 text-[9px] uppercase tracking-widest text-gray-500 font-bold">
+      <div className={`${cols} px-3 py-2.5 bg-[var(--bg-darker)]/50 text-[10px] uppercase tracking-widest text-gray-500 font-bold`}>
         <div>#</div>
         <div>Team</div>
         <div className="text-right">P</div>
@@ -704,14 +712,17 @@ function StandingsTable({ rows }: { rows: GroupRow[] }) {
             : r.position === 3
             ? "border-l-2 border-l-amber-400/50"
             : "border-l-2 border-l-transparent";
-        return (
-          <div
-            key={r.team.code}
-            className={`grid grid-cols-[1.6rem_1fr_repeat(4,1.5rem)_1.8rem] gap-1 items-center px-2 py-1.5 text-[11px] border-t border-[var(--border-card)] ${adv}`}
-          >
+        const clickable = !!onTeamClick && !!squads[r.team.code];
+        const cls = `${cols} items-center px-3 py-3 text-sm border-t border-[var(--border-card)] ${adv} ${
+          clickable
+            ? "w-full text-left hover:bg-[var(--border-card)]/60 transition-colors cursor-pointer"
+            : ""
+        }`;
+        const cells = (
+          <>
             <div className="text-gray-500 font-bold tabular-nums">{r.position}</div>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <FlagImage code={r.team.code} size="sm" />
+            <div className="flex items-center gap-2 min-w-0">
+              <FlagImage code={r.team.code} size="md" />
               <span className="text-white font-semibold truncate">
                 {r.team.code}
               </span>
@@ -723,6 +734,20 @@ function StandingsTable({ rows }: { rows: GroupRow[] }) {
             <div className="text-right text-white font-bold tabular-nums">
               {r.points}
             </div>
+          </>
+        );
+        return clickable ? (
+          <button
+            key={r.team.code}
+            type="button"
+            onClick={() => onTeamClick!(r.team.code)}
+            className={cls}
+          >
+            {cells}
+          </button>
+        ) : (
+          <div key={r.team.code} className={cls}>
+            {cells}
           </div>
         );
       })}
@@ -857,7 +882,7 @@ function GroupCard({
         </div>
 
         {rows && rows.length > 0 ? (
-          <StandingsTable rows={rows} />
+          <StandingsTable rows={rows} onTeamClick={onTeamClick} />
         ) : (
           <div className="mt-3">
             {group.teams
