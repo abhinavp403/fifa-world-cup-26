@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:squads": "node --env-file=.env.local --import tsx scripts/migrate-squads.ts",
-    "fix:shirt-numbers": "node --import tsx scripts/fix-shirt-numbers.ts"
+    "fix:shirt-numbers": "node --import tsx scripts/fix-shirt-numbers.ts",
+    "sync:roster": "node --import tsx scripts/sync-roster.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
