@@ -112,7 +112,7 @@ export type MatchSide = {
 export type MatchEvent = {
   minute: number;
   extra: number | null;
-  type: "goal" | "yellowCard" | "redCard" | "substitution" | "var" | "other";
+  type: "goal" | "ownGoal" | "yellowCard" | "redCard" | "substitution" | "var" | "other";
   teamId: number;
   player: string;
   assist: string | null;
@@ -309,8 +309,9 @@ function buildSide(
     rowPlayers.forEach((sp, i) => {
       const { y } = gridToXY(sp.player.grid, sp.player.pos);
       const x = n === 1 ? 50 : left + (i * spread) / (n - 1);
-      // For away side we flip vertically so own goal is at top.
-      const yFlipped = side === "away" ? 100 - y : y;
+      // Both teams render as their own single pitch — keep the goalkeeper at
+      // the bottom (own goal) and attackers up top for both sides.
+      const yFlipped = 100 - y;
       startXI.push({
         id: sp.player.id,
         name: sp.player.name,
@@ -411,7 +412,7 @@ function buildS7Side(
   const redByPlayer = new Map<number, number>();
   for (const inc of incidents ?? []) {
     if (inc.isHome !== (side === "home")) continue;
-    if (inc.incidentType === "goal" && inc.player && inc.goalType !== "ownGoal") {
+    if (inc.incidentType === "goal" && inc.player && inc.incidentClass !== "ownGoal") {
       goalsByPlayer.set(inc.player.id, (goalsByPlayer.get(inc.player.id) ?? 0) + 1);
     } else if (inc.incidentType === "card" && inc.player) {
       const cls = (inc.incidentClass ?? "").toLowerCase();
@@ -495,7 +496,7 @@ function buildS7Side(
     const y = yByRowIndex[Math.min(rowIdx, yByRowIndex.length - 1)];
     rowPlayers.forEach((rp, i) => {
       const x = n === 1 ? 50 : left + (i * spread) / (n - 1);
-      const yFlipped = side === "away" ? 100 - y : y;
+      const yFlipped = 100 - y; // GK at bottom for both teams (separate pitches)
       startXI.push({
         id: rp.player.id,
         name: rp.player.name,
@@ -557,11 +558,12 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
       const minute = (inc.time ?? 0);
       const extra = inc.addedTime && inc.addedTime < 100 ? inc.addedTime : null;
       if (inc.incidentType === "goal") {
+        const own = inc.incidentClass === "ownGoal";
         return {
-          minute, extra, type: "goal", teamId,
+          minute, extra, type: own ? "ownGoal" : "goal", teamId,
           player: inc.player?.name ?? "Unknown",
-          assist: inc.assist1?.name ?? null,
-          detail: inc.goalType === "penalty" ? "Penalty" : "Goal",
+          assist: own ? null : inc.assist1?.name ?? null,
+          detail: own ? "Own Goal" : inc.goalType === "penalty" ? "Penalty" : "Goal",
         };
       }
       if (inc.incidentType === "card") {
@@ -584,7 +586,9 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
       }
       return null;
     })
-    .filter((e): e is MatchEvent => e !== null);
+    .filter((e): e is MatchEvent => e !== null)
+    // Sofascore returns incidents latest-first; show chronologically.
+    .sort((a, b) => a.minute - b.minute || (a.extra ?? 0) - (b.extra ?? 0));
 
   return {
     live: true,
@@ -656,7 +660,8 @@ export async function GET(request: Request) {
       detail: e.detail,
     }))
     // Drop noisy "other" entries (substitutions show up nicely; var is too noisy).
-    .filter((e) => e.type !== "other" && e.type !== "var");
+    .filter((e) => e.type !== "other" && e.type !== "var")
+    .sort((a, b) => a.minute - b.minute || (a.extra ?? 0) - (b.extra ?? 0));
 
   const payload: MatchPayload = {
     live: true,

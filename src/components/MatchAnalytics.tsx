@@ -615,6 +615,13 @@ const EVENT_CONFIG = {
     rowBg: "bg-emerald-500/8 border border-emerald-500/20",
     minuteBg: "bg-emerald-500/20 border-emerald-500/40 text-emerald-200",
   },
+  ownGoal: {
+    icon: "⚽",
+    label: "Own Goal",
+    iconBg: "bg-rose-500/25 ring-1 ring-rose-500/40",
+    rowBg: "bg-rose-500/8 border border-rose-500/20",
+    minuteBg: "bg-rose-500/20 border-rose-500/40 text-rose-200",
+  },
   yellowCard: {
     icon: "🟨",
     label: "Yellow Card",
@@ -648,6 +655,21 @@ function getEventConfig(type: string) {
     rowBg: "bg-transparent border border-transparent",
     minuteBg: "bg-[var(--border-card)] border-[var(--border-strong)] text-gray-300",
   };
+}
+
+// Timeline-marker icon, with a small "OG" tag so own goals are distinguishable
+// from regular goals at a glance (both use the ⚽ glyph).
+function EventIcon({ type }: { type: string }) {
+  return (
+    <span className="relative inline-block text-sm leading-none">
+      {getEventConfig(type).icon}
+      {type === "ownGoal" && (
+        <span className="absolute -top-1.5 -right-3 text-[7px] font-black tracking-tight text-rose-400 leading-none">
+          OG
+        </span>
+      )}
+    </span>
+  );
 }
 
 function toCode(name: string): string {
@@ -714,7 +736,7 @@ function KeyMomentsTimeline({
                 >
                   {e.minute}{e.extra ? `+${e.extra}` : ""}'
                 </span>
-                <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
+                <EventIcon type={e.type} />
                 <div className="w-px h-2 mt-0.5" style={{ backgroundColor: homeColor + "4d" }} />
               </div>
             ))}
@@ -768,7 +790,7 @@ function KeyMomentsTimeline({
                 className="absolute top-0 -translate-x-1/2 flex flex-col items-center"
               >
                 <div className="w-px h-2 mb-0.5" style={{ backgroundColor: awayColor + "4d" }} />
-                <span className="text-sm leading-none">{getEventConfig(e.type).icon}</span>
+                <EventIcon type={e.type} />
                 <span
                   className="text-[10px] font-bold tabular-nums leading-none mt-0.5"
                   style={{ color: awayColor + "e6" }}
@@ -780,13 +802,19 @@ function KeyMomentsTimeline({
           </div>
         </div>
 
-        {/* Axis labels — aligned to bar (not label column) */}
+        {/* Axis labels — aligned to bar (not label column). HT sits at the
+            same x as the half-time line, not centered. */}
         <div className="flex gap-1">
           <div className={`${LABEL_W} flex-shrink-0`} />
-          <div className="flex justify-between text-[10px] text-gray-600 mt-1 flex-1">
-            <span>0'</span>
-            <span>HT 45'</span>
-            <span>{maxMinute}'</span>
+          <div className="relative h-3.5 text-[10px] text-gray-600 mt-1 flex-1">
+            <span className="absolute left-0">0'</span>
+            <span
+              className="absolute -translate-x-1/2 whitespace-nowrap"
+              style={{ left: `${(45 / maxMinute) * 100}%` }}
+            >
+              HT 45'
+            </span>
+            <span className="absolute right-0">{maxMinute}'</span>
           </div>
         </div>
       </div>
@@ -801,13 +829,13 @@ function KeyMomentsTimeline({
         </div>
 
         {(() => {
-          // Find the index of the first second-half event to insert the HT divider.
+          // Insert the HT divider before the first second-half event — but only
+          // when there are first-half events above it (events are chronological).
           const htIndex = events.findIndex((e) => e.minute > 45);
           const rows: React.ReactNode[] = [];
 
           events.forEach((e, i) => {
-            // Insert HT divider before the first second-half event.
-            if (i === htIndex) {
+            if (i === htIndex && htIndex > 0) {
               rows.push(
                 <div key="ht-divider" className="grid grid-cols-[1fr_56px_1fr] gap-2 items-center py-1 px-2 my-1">
                   <div className="h-px bg-white/10" />
