@@ -1,26 +1,30 @@
-// Tournament-wide aggregation of api-football per-fixture stats.
+// Tournament-wide aggregation of team-level stats from sportapi7 (Sofascore).
 //
-// Two parallel passes per finished fixture:
-//   • /fixtures/statistics — team-level totals (shots, fouls, cards,
-//     possession, corners, passes, saves, etc.). One row per side.
-//   • /fixtures/players    — per-player stats; summed across each side
-//     to recover team-level totals for fields that don't exist at the
-//     fixture-statistics level (key passes, tackles, interceptions).
+// Was built on api-football, but the free plan can't read WC 2026, so it
+// returned nothing and every team showed zeros. sportapi7 covers WC 2026.
 //
-// Both endpoints go through the `next: { revalidate: 300 }` cache
-// wrapper in apiFootball.ts, so callers within a 5-minute window reuse
-// the same data without re-hitting the API.
+// Two sources per finished event:
+//   • /event/{id}/statistics — team-level totals (shots, fouls, cards,
+//     possession, corners, passes, saves, etc.). One value per side.
+//   • /event/{id}/lineups    — per-player stats; summed across each side to
+//     recover team totals for fields the statistics endpoint doesn't expose
+//     (key passes, tackles, interceptions).
+//
+// Output shape is unchanged from the old api-football version so callers
+// (/api/worldcup, the team-stats modal, statsSync) keep working as-is.
 
-import {
-  WC_LEAGUE_ID,
-  getFinishedLeagueFixtures,
-  getFixturePlayers,
-  getFixtureStatistics,
-} from "@/lib/apiFootball";
 import { findLocalTeam } from "@/lib/resolver";
+import {
+  getS7Event,
+  getS7Lineups,
+  getS7Statistics,
+  getS7WorldCupEvents,
+  type S7LineupSide,
+  type S7StatPeriod,
+} from "@/lib/sportApi7";
 
 export type TeamFixtureAggregate = {
-  // From /fixtures/statistics (team-level totals)
+  // From /event/{id}/statistics (team-level totals)
   possession:     number; // average possession % (0–100)
   corners:        number;
   shots:          number;
@@ -32,7 +36,7 @@ export type TeamFixtureAggregate = {
   saves:          number;
   passes:         number;
   passesAccurate: number;
-  // From /fixtures/players (per-player, summed across the roster)
+  // From /event/{id}/lineups (per-player, summed across the roster)
   keyPasses:      number;
   tackles:        number;
   interceptions:  number;
@@ -42,30 +46,21 @@ export type TeamFixtureAggregate = {
 
 export type TeamFixtureAggregateMap = Record<string, TeamFixtureAggregate>;
 
-function statValueAsNumber(value: number | string | null | undefined): number {
-  if (value == null) return 0;
-  if (typeof value === "number") return value;
-  // possession comes back as e.g. "60%" — strip non-digits
-  const n = parseInt(String(value).replace(/[^\d-]/g, ""), 10);
-  return Number.isFinite(n) ? n : 0;
+// Read one team-level statistic (home or away) from the "ALL" period.
+function teamStat(
+  stats: S7StatPeriod[] | null,
+  key: string,
+  side: "home" | "away",
+): number {
+  if (!stats) return 0;
+  const all = stats.find((p) => p.period === "ALL");
+  if (!all) return 0;
+  for (const g of all.groups) {
+    const item = g.statisticsItems.find((i) => i.key === key);
+    if (item) return (side === "home" ? item.homeValue : item.awayValue) ?? 0;
+  }
+  return 0;
 }
-
-// Map of API-Football statistic type names → which TeamFixtureAggregate
-// field they should accumulate into. Possession is averaged at the end;
-// everything else is a simple sum.
-const STAT_FIELD_MAP: Record<string, keyof TeamFixtureAggregate | "possession_sum"> = {
-  "Total Shots":       "shots",
-  "Shots on Goal":     "shotsOnTarget",
-  "Fouls":             "fouls",
-  "Offsides":          "offsides",
-  "Corner Kicks":      "corners",
-  "Yellow Cards":      "yellowCards",
-  "Red Cards":         "redCards",
-  "Goalkeeper Saves":  "saves",
-  "Total passes":      "passes",
-  "Passes accurate":   "passesAccurate",
-  "Ball Possession":   "possession_sum",
-};
 
 const ZERO_AGG = (): TeamFixtureAggregate & { possessionSum: number } => ({
   possession: 0, corners: 0, shots: 0, shotsOnTarget: 0,
@@ -83,76 +78,68 @@ function ensure(acc: AccMap, code: string) {
   return acc[code];
 }
 
-export async function aggregateWorldCupTeamStats(
-  season: number,
-): Promise<TeamFixtureAggregateMap> {
-  const fixtures = await getFinishedLeagueFixtures(WC_LEAGUE_ID, season);
-  if (!fixtures || fixtures.length === 0) return {};
+// Accumulate one side of one finished event into the per-team aggregate.
+function accumulateSide(
+  a: ReturnType<typeof ZERO_AGG>,
+  stats: S7StatPeriod[] | null,
+  lineup: S7LineupSide | undefined,
+  side: "home" | "away",
+) {
+  a.shots          += teamStat(stats, "totalShotsOnGoal", side);
+  a.shotsOnTarget  += teamStat(stats, "shotsOnGoal", side);
+  a.fouls          += teamStat(stats, "fouls", side);
+  a.offsides       += teamStat(stats, "offsides", side);
+  a.corners        += teamStat(stats, "cornerKicks", side);
+  a.yellowCards    += teamStat(stats, "yellowCards", side);
+  a.redCards       += teamStat(stats, "redCards", side);
+  a.saves          += teamStat(stats, "goalkeeperSaves", side);
+  a.passes         += teamStat(stats, "passes", side);
+  a.passesAccurate += teamStat(stats, "accuratePasses", side);
+  a.possessionSum  += teamStat(stats, "ballPossession", side);
 
-  // Parallel-fetch per-fixture statistics AND per-fixture players for
-  // every finished match. Each individual call is cached at the fetch
-  // layer (5-min revalidate), so re-renders within that window are free.
-  const [statsByFixture, playersByFixture] = await Promise.all([
-    Promise.all(fixtures.map((f) => getFixtureStatistics(f.fixture.id))),
-    Promise.all(fixtures.map((f) => getFixturePlayers(f.fixture.id))),
-  ]);
+  for (const lp of lineup?.players ?? []) {
+    const s = lp.statistics ?? {};
+    a.keyPasses     += s.keyPass ?? 0;
+    a.tackles       += s.totalTackle ?? 0;
+    a.interceptions += s.interceptionWon ?? 0;
+  }
+
+  a.matches++;
+}
+
+export async function aggregateWorldCupTeamStats(
+  _season: number,
+): Promise<TeamFixtureAggregateMap> {
+  void _season; // season is fixed by the sportapi7 tournament/season constants
+  const events = await getS7WorldCupEvents();
+  const finished = events.filter((e) => e.statusType === "finished");
+  if (finished.length === 0) return {};
+
+  const perEvent = await Promise.all(
+    finished.map(async (e) => {
+      const [stats, lineups, ev] = await Promise.all([
+        getS7Statistics(e.id),
+        getS7Lineups(e.id),
+        getS7Event(e.id),
+      ]);
+      return { stats, lineups, ev };
+    }),
+  );
 
   const acc: AccMap = {};
-
-  // ── Pass 1: team-level stats from /fixtures/statistics ──
-  fixtures.forEach((_fixture, idx) => {
-    const fixtureStats = statsByFixture[idx];
-    if (!fixtureStats) return;
-
-    for (const teamStat of fixtureStats) {
-      const local = findLocalTeam({
-        id:   teamStat.team.id,
-        name: teamStat.team.name,
-      });
-      if (!local) continue;
-
-      const a = ensure(acc, local.code);
-
-      for (const row of teamStat.statistics) {
-        const field = STAT_FIELD_MAP[row.type];
-        if (!field) continue;
-        const val = statValueAsNumber(row.value);
-        if (field === "possession_sum") {
-          a.possessionSum += val;
-        } else {
-          a[field] = (a[field] as number) + val;
-        }
-      }
-      a.matches++;
+  for (const { stats, lineups, ev } of perEvent) {
+    if (!ev) continue;
+    const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
+    const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
+    if (homeLocal) {
+      accumulateSide(ensure(acc, homeLocal.code), stats, lineups?.home, "home");
     }
-  });
-
-  // ── Pass 2: player-level sums from /fixtures/players for the few
-  // fields that aren't at the fixture-statistics level. ──
-  fixtures.forEach((_fixture, idx) => {
-    const fixturePlayers = playersByFixture[idx];
-    if (!fixturePlayers) return;
-
-    for (const teamPlayers of fixturePlayers) {
-      const local = findLocalTeam({
-        id:   teamPlayers.team.id,
-        name: teamPlayers.team.name,
-      });
-      if (!local) continue;
-
-      const a = ensure(acc, local.code);
-
-      for (const playerEntry of teamPlayers.players) {
-        const s = playerEntry.statistics[0];
-        if (!s) continue;
-        a.keyPasses     += s.passes.key            ?? 0;
-        a.tackles       += s.tackles.total         ?? 0;
-        a.interceptions += s.tackles.interceptions ?? 0;
-      }
+    if (awayLocal) {
+      accumulateSide(ensure(acc, awayLocal.code), stats, lineups?.away, "away");
     }
-  });
+  }
 
-  // ── Finalize: compute averaged possession and drop bookkeeping ──
+  // Finalize: average possession, drop bookkeeping.
   const out: TeamFixtureAggregateMap = {};
   for (const [code, v] of Object.entries(acc)) {
     out[code] = {

@@ -1,17 +1,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Live stats sync — aggregates tournament stats from api-football and writes
-// them into Supabase. Triggered on a schedule by /api/cron/sync-stats.
+// Live stats sync — aggregates tournament stats from sportapi7 (Sofascore)
+// and writes them into Supabase. Triggered on a schedule by
+// /api/cron/sync-stats.
+//
+// Why Sofascore and not api-football: the free api-football plan can't read
+// World Cup 2026 ("Free plans do not have access to this season"), so it
+// returns zero finished fixtures and every player ends up with 0 stats.
+// sportapi7 covers WC 2026 (unique-tournament 16, season 58210) and exposes
+// rich per-player statistics in its lineups endpoint.
 //
 // What it does, each run:
-//   1. Pull every finished WC fixture's per-player stats (/fixtures/players)
-//      and sum them per player across the whole tournament.
-//   2. Match each api-football player to a DB roster row — by stored
-//      api_player_id when known, else by name within the team (26 players,
-//      so this is reliable). On match, backfill api_player_id so the next
-//      run is exact.
-//   3. Write the aggregated PlayerStats into players.stats.
-//   4. Aggregate team-level stats (possession, corners, …) and write
-//      team_stats — so /api/worldcup reads the DB instead of hammering the API.
+//   1. List every WC event, keep the finished ones.
+//   2. For each, pull lineups (per-player stats) + incidents (goals/cards) +
+//      the event (score/result) and sum each player's line across the whole
+//      tournament, keyed by Sofascore player id.
+//   3. Match each Sofascore player to a DB roster row — primarily by the
+//      Sofascore id encoded in the row's `photo` (/api/player-photo/<id>),
+//      falling back to name-within-team.
+//   4. Write the aggregated PlayerStats into players.stats.
+//   5. Aggregate team-level stats and write team_stats — so /api/worldcup
+//      reads the DB instead of hammering the API.
 //
 // Server-only: uses the Supabase service-role key (writes bypass RLS).
 // Safe to run repeatedly; everything is upsert/idempotent. Returns 0s
@@ -21,13 +29,16 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-import {
-  getFinishedLeagueFixtures,
-  getFixturePlayers,
-  WC_LEAGUE_ID,
-} from "@/lib/apiFootball";
 import { findLocalTeam } from "@/lib/resolver";
 import { aggregateWorldCupTeamStats } from "@/lib/teamFixtureStats";
+import {
+  getS7Event,
+  getS7Incidents,
+  getS7Lineups,
+  getS7WorldCupEvents,
+  type S7Incident,
+  type S7LineupSide,
+} from "@/lib/sportApi7";
 import { ZERO_STATS, type PlayerStats } from "@/lib/squads";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -43,20 +54,22 @@ export type SyncSummary = {
 };
 
 // Per-player accumulator: a PlayerStats plus the internal running totals
-// needed to finalize the two derived fields (passAccuracy, rating).
+// needed to finalize the derived fields (passAccuracy, rating).
 type Acc = PlayerStats & {
   _teamCode: string;
   _name: string;
+  _sofaId: number;
   _accuratePasses: number;
   _ratingSum: number;
   _ratingCount: number;
 };
 
-function freshAcc(teamCode: string, name: string): Acc {
+function freshAcc(teamCode: string, name: string, sofaId: number): Acc {
   return {
     ...ZERO_STATS,
     _teamCode: teamCode,
     _name: name,
+    _sofaId: sofaId,
     _accuratePasses: 0,
     _ratingSum: 0,
     _ratingCount: 0,
@@ -74,64 +87,108 @@ function strip(s: string): string {
     .trim();
 }
 
-/** Sum one fixture's stat line for a player into their accumulator. */
-function accumulate(acc: Acc, st: NonNullable<ReturnType<typeof firstStat>>) {
-  const minutes = n(st.games.minutes);
-  if (minutes > 0) {
-    acc.appearances += 1;
-    if (!st.games.substitute) acc.started += 1;
-  }
-  acc.minutesPlayed  += minutes;
-  acc.goals          += n(st.goals.total);
-  acc.assists        += n(st.goals.assists);
-  acc.shots          += n(st.shots.total);
-  acc.shotsOnTarget  += n(st.shots.on);
-  acc.keyPasses      += n(st.passes.key);
-  acc.passes         += n(st.passes.total);
-  acc.dribbles       += n(st.dribbles.success);
-  acc.dribbleAttempts+= n(st.dribbles.attempts);
-  acc.tackles        += n(st.tackles.total);
-  acc.interceptions  += n(st.tackles.interceptions);
-  acc.duelsWon       += n(st.duels.won);
-  acc.duelsTotal     += n(st.duels.total);
-  acc.foulsCommitted += n(st.fouls.committed);
-  acc.foulsDrawn     += n(st.fouls.drawn);
-  acc.offsides       += n(st.offsides);
-  acc.penaltyScored  += n(st.penalty?.scored);
-  acc.penaltyMissed  += n(st.penalty?.missed);
-  acc.penaltyWon     += n(st.penalty?.won);
-  acc.penaltySaved   += n(st.penalty?.saved);
-  acc.yellowCards    += n(st.cards.yellow);
-  acc.redCards       += n(st.cards.red);
-  acc.saves          += n(st.goals.saves);
-  acc.goalsConceded  += n(st.goals.conceded);
-
-  // Clean sheet: a keeper who played and conceded nothing this match.
-  const pos = (st.games.position ?? "").toUpperCase();
-  if (minutes > 0 && pos.startsWith("G") && n(st.goals.conceded) === 0) {
-    acc.cleanSheets += 1;
-  }
-
-  // accurate passes (count, not %) for a proper weighted accuracy later
-  const accurate =
-    typeof st.passes.accuracy === "string"
-      ? parseInt(st.passes.accuracy, 10) || 0
-      : n(st.passes.accuracy as number | null);
-  acc._accuratePasses += accurate;
-
-  const rating = st.games.rating ? parseFloat(st.games.rating) : NaN;
-  if (!Number.isNaN(rating)) {
-    acc._ratingSum += rating;
-    acc._ratingCount += 1;
-  }
+/** Extract the Sofascore player id a roster photo URL points at, if any. */
+function sofaIdFromPhoto(photo: string | null | undefined): number | null {
+  if (!photo) return null;
+  const m = photo.match(/player-photo\/(\d+)/);
+  return m ? Number(m[1]) : null;
 }
 
-function firstStat(p: {
-  statistics: Array<NonNullable<unknown>>;
-}) {
-  return (p.statistics?.[0] ?? null) as
-    | (import("@/lib/apiFootball").AFPlayerStats["players"][number]["statistics"][number])
-    | null;
+/**
+ * Sum one finished event into the per-player accumulators.
+ * `side` aggregates one team's lineup; goals/cards come from incidents.
+ */
+function accumulateSide(
+  byId: Map<number, Acc>,
+  teamCode: string,
+  lineup: S7LineupSide | undefined,
+  incidents: S7Incident[] | null,
+  isHome: boolean,
+  result: "W" | "D" | "L",
+  goalsConceded: number,
+) {
+  // Goals / cards / penalties from the incidents feed (not in lineup stats).
+  const goalsByPlayer = new Map<number, number>();
+  const penGoalsByPlayer = new Map<number, number>();
+  const yellowByPlayer = new Map<number, number>();
+  const redByPlayer = new Map<number, number>();
+  for (const inc of incidents ?? []) {
+    if (inc.isHome !== isHome) continue;
+    if (inc.incidentType === "goal" && inc.player && inc.incidentClass !== "ownGoal") {
+      goalsByPlayer.set(inc.player.id, (goalsByPlayer.get(inc.player.id) ?? 0) + 1);
+      if (inc.goalType === "penalty") {
+        penGoalsByPlayer.set(inc.player.id, (penGoalsByPlayer.get(inc.player.id) ?? 0) + 1);
+      }
+    } else if (inc.incidentType === "card" && inc.player) {
+      const cls = (inc.incidentClass ?? "").toLowerCase();
+      if (cls.includes("red")) redByPlayer.set(inc.player.id, 1);
+      else yellowByPlayer.set(inc.player.id, (yellowByPlayer.get(inc.player.id) ?? 0) + 1);
+    }
+  }
+
+  for (const lp of lineup?.players ?? []) {
+    const s = lp.statistics ?? {};
+    const id = lp.player.id;
+    let acc = byId.get(id);
+    if (!acc) {
+      acc = freshAcc(teamCode, lp.player.name, id);
+      byId.set(id, acc);
+    }
+
+    const minutes = n(s.minutesPlayed);
+    const played = minutes > 0;
+    if (played) {
+      acc.appearances += 1;
+      if (!lp.substitute) acc.started += 1;
+      if (result === "W") acc.matchesWon += 1;
+      else if (result === "D") acc.matchesDrawn += 1;
+      else acc.matchesLost += 1;
+    }
+    acc.minutesPlayed += minutes;
+
+    acc.goals += goalsByPlayer.get(id) ?? n(s.goals);
+    acc.assists += n(s.goalAssist);
+    acc.shots += n(s.totalShots);
+    acc.shotsOnTarget += n(s.onTargetScoringAttempt);
+    acc.keyPasses += n(s.keyPass);
+    acc.passes += n(s.totalPass);
+    acc._accuratePasses += n(s.accuratePass);
+    acc.dribbles += n(s.wonContest);
+    acc.dribbleAttempts += n(s.totalContest);
+    acc.tackles += n(s.totalTackle);
+    acc.interceptions += n(s.interceptionWon);
+    acc.duelsWon += n(s.duelWon);
+    acc.duelsTotal += n(s.duelWon) + n(s.duelLost);
+    acc.foulsCommitted += n(s.fouls);
+    acc.foulsDrawn += n(s.wasFouled);
+    acc.offsides += n(s.totalOffside);
+    acc.penaltyScored += penGoalsByPlayer.get(id) ?? 0;
+    acc.yellowCards += yellowByPlayer.get(id) ?? 0;
+    acc.redCards += redByPlayer.get(id) ?? 0;
+    acc.saves += n(s.saves);
+    acc.goalsPrevented += n(s.goalsPrevented);
+    acc.clearances += n(s.totalClearance);
+    acc.errorsLeadToShot += n(s.errorLeadToAShot);
+    acc.crosses += n(s.accurateCross);
+    acc.ballRecoveries += n(s.ballRecovery);
+    acc.longBalls += n(s.totalLongBalls);
+    acc.touches += n(s.touches);
+    acc.expectedAssists += n(s.expectedAssists);
+    acc.expectedGoals += n(s.expectedGoals);
+
+    // Goalkeepers: per-match goals conceded / clean sheets.
+    const pos = (lp.position ?? lp.player.position ?? "").toUpperCase();
+    if (played && pos.startsWith("G")) {
+      acc.goalsConceded += goalsConceded;
+      if (goalsConceded === 0) acc.cleanSheets += 1;
+    }
+
+    const rating = typeof s.rating === "number" ? s.rating : NaN;
+    if (!Number.isNaN(rating) && rating > 0) {
+      acc._ratingSum += rating;
+      acc._ratingCount += 1;
+    }
+  }
 }
 
 /** Finalize derived fields and strip internal accumulators. */
@@ -142,13 +199,16 @@ function finalize(acc: Acc): PlayerStats {
     acc._ratingCount > 0
       ? Math.round((acc._ratingSum / acc._ratingCount) * 10) / 10
       : 0;
-  // copy the public PlayerStats fields only
   const out: PlayerStats = { ...ZERO_STATS };
   (Object.keys(out) as (keyof PlayerStats)[]).forEach((k) => {
     out[k] = acc[k] as number;
   });
   out.passAccuracy = passAccuracy;
   out.rating = rating;
+  // Round the float-valued advanced metrics for clean display.
+  out.expectedGoals = Math.round(out.expectedGoals * 100) / 100;
+  out.expectedAssists = Math.round(out.expectedAssists * 100) / 100;
+  out.goalsPrevented = Math.round(out.goalsPrevented * 100) / 100;
   return out;
 }
 
@@ -156,69 +216,86 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return mk(false, 0, 0, 0, 0, "Supabase env not configured");
   }
-  void WC_LEAGUE_ID; // (league id used inside the helpers)
 
-  const fixtures = await getFinishedLeagueFixtures(WC_LEAGUE_ID, season);
-  if (!fixtures || fixtures.length === 0) {
-    // Still refresh team stats (also empty) and timestamp the run.
+  const events = await getS7WorldCupEvents();
+  const finished = events.filter((e) => e.statusType === "finished");
+  if (finished.length === 0) {
     await writeSyncState(0, 0, 0, 0, "no finished fixtures");
     return mk(true, 0, 0, 0, 0, "no finished fixtures yet");
   }
 
-  // ── 1. Pull per-fixture player stats and accumulate per api-football id ──
-  const perFixture = await Promise.all(
-    fixtures.map((f) => getFixturePlayers(f.fixture.id)),
+  // ── 1. Pull each finished event's lineups + incidents + score, accumulate ──
+  const byId = new Map<number, Acc>();
+  const perEvent = await Promise.all(
+    finished.map(async (e) => {
+      const [lineups, incidents, ev] = await Promise.all([
+        getS7Lineups(e.id),
+        getS7Incidents(e.id),
+        getS7Event(e.id),
+      ]);
+      return { e, lineups, incidents, ev };
+    }),
   );
 
-  // key: api-football player id → accumulator
-  const byApiId = new Map<number, Acc>();
-  // remember each api id's local team + name for matching
-  for (const fixtureStats of perFixture) {
-    if (!fixtureStats) continue;
-    for (const teamBlock of fixtureStats) {
-      const local = findLocalTeam({ id: teamBlock.team.id, name: teamBlock.team.name });
-      if (!local) continue;
-      for (const entry of teamBlock.players) {
-        const st = firstStat(entry);
-        if (!st) continue;
-        let acc = byApiId.get(entry.player.id);
-        if (!acc) {
-          acc = freshAcc(local.code, entry.player.name);
-          byApiId.set(entry.player.id, acc);
-        }
-        accumulate(acc, st);
-      }
+  for (const { lineups, incidents, ev } of perEvent) {
+    if (!ev || !lineups) continue;
+    const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
+    const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
+    const hs = n(ev.homeScore.current);
+    const as = n(ev.awayScore.current);
+    const homeResult = hs > as ? "W" : hs < as ? "L" : "D";
+    const awayResult = as > hs ? "W" : as < hs ? "L" : "D";
+    if (homeLocal) {
+      accumulateSide(byId, homeLocal.code, lineups.home, incidents, true, homeResult, as);
+    }
+    if (awayLocal) {
+      accumulateSide(byId, awayLocal.code, lineups.away, incidents, false, awayResult, hs);
     }
   }
 
-  // ── 2. Load DB roster and match ──
+  // ── 2. Load DB roster and match (by Sofascore photo id, then name) ──
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false },
   });
-  const { data: rosterRows, error: rosterErr } = await supabase
-    .from("players")
-    .select("id, team_code, name, api_player_id");
-  if (rosterErr) {
-    return mk(false, fixtures.length, 0, 0, 0, `roster read failed: ${rosterErr.message}`);
+  // Paginate: there are ~1,250 players (48 × 26) and PostgREST caps a single
+  // response at 1,000 rows, so a plain select silently truncates the roster.
+  type RosterRow = { id: number; team_code: string; name: string; photo: string | null };
+  const roster: RosterRow[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("players")
+      .select("id, team_code, name, photo")
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      return mk(false, finished.length, 0, 0, 0, `roster read failed: ${error.message}`);
+    }
+    const rows = (data ?? []) as RosterRow[];
+    roster.push(...rows);
+    if (rows.length < PAGE) break;
   }
-  const roster = rosterRows ?? [];
 
-  // index roster by team for name matching
   const byTeam = new Map<string, typeof roster>();
-  const byApiIdRow = new Map<number, (typeof roster)[number]>();
+  const bySofaId = new Map<number, (typeof roster)[number]>();
   for (const r of roster) {
-    if (r.api_player_id != null) byApiIdRow.set(r.api_player_id, r);
+    const sid = sofaIdFromPhoto(r.photo);
+    if (sid != null) bySofaId.set(sid, r);
     const list = byTeam.get(r.team_code) ?? [];
     list.push(r);
     byTeam.set(r.team_code, list);
   }
 
-  const updates: { id: number; stats: PlayerStats; api_player_id: number }[] = [];
+  const updates: { id: number; stats: PlayerStats }[] = [];
+  const unmatchedNames: string[] = [];
   let unmatched = 0;
 
-  for (const [apiId, acc] of byApiId) {
-    // (a) exact match by previously-stored api id
-    let row = byApiIdRow.get(apiId) ?? null;
+  for (const [sofaId, acc] of byId) {
+    // Only players who actually featured in a finished match get written;
+    // unused bench players stay at their default (zeroed) stats.
+    if (acc.appearances === 0) continue;
+    // (a) exact match by the Sofascore id baked into the photo URL
+    let row = bySofaId.get(sofaId) ?? null;
     // (b) else match by name within the team
     if (!row) {
       const candidates = byTeam.get(acc._teamCode) ?? [];
@@ -228,33 +305,41 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
         candidates.find((c) => strip(c.name) === target) ??
         candidates.find((c) => {
           const cs = strip(c.name);
-          // surname/token overlap (handles "G. Jesus" vs "Gabriel Jesus")
           const cTokens = new Set(cs.split(" ").filter((t) => t.length > 2));
           const overlap = [...tTokens].filter((t) => cTokens.has(t));
-          return overlap.length >= 1 && (cs.includes(target) || target.includes(cs) || overlap.length >= 2);
+          return (
+            overlap.length >= 1 &&
+            (cs.includes(target) || target.includes(cs) || overlap.length >= 2)
+          );
         }) ??
         null;
     }
     if (!row) {
       unmatched += 1;
+      unmatchedNames.push(`${acc._teamCode}:${acc._name}`);
       continue;
     }
-    updates.push({ id: row.id, stats: finalize(acc), api_player_id: apiId });
+    updates.push({ id: row.id, stats: finalize(acc) });
+  }
+  if (unmatchedNames.length > 0) {
+    console.warn(`[statsSync] ${unmatched} unmatched players:`, unmatchedNames.join(", "));
   }
 
-  // ── 3. Write player stats (chunked upsert by id) ──
+  // ── 3. Write player stats (per-row UPDATE — players.id is an identity
+  //       column, so an upsert that carries id can't INSERT). Every id here
+  //       came from an existing roster row, so a plain update is correct. ──
   let playersSet = 0;
-  const CHUNK = 200;
+  const CHUNK = 25;
   for (let i = 0; i < updates.length; i += CHUNK) {
     const slice = updates.slice(i, i + CHUNK);
-    const { error } = await supabase
-      .from("players")
-      .upsert(
-        slice.map((u) => ({ id: u.id, stats: u.stats, api_player_id: u.api_player_id })),
-        { onConflict: "id" },
-      );
-    if (error) {
-      return mk(false, fixtures.length, playersSet, unmatched, 0, `player write failed: ${error.message}`);
+    const results = await Promise.all(
+      slice.map((u) =>
+        supabase.from("players").update({ stats: u.stats }).eq("id", u.id),
+      ),
+    );
+    const firstErr = results.find((r) => r.error)?.error;
+    if (firstErr) {
+      return mk(false, finished.length, playersSet, unmatched, 0, `player write failed: ${firstErr.message}`);
     }
     playersSet += slice.length;
   }
@@ -268,13 +353,13 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
       .from("team_stats")
       .upsert(teamRows, { onConflict: "team_code" });
     if (error) {
-      return mk(false, fixtures.length, playersSet, unmatched, 0, `team write failed: ${error.message}`);
+      return mk(false, finished.length, playersSet, unmatched, 0, `team write failed: ${error.message}`);
     }
     teamsSet = teamRows.length;
   }
 
-  await writeSyncState(fixtures.length, playersSet, unmatched, teamsSet, "ok");
-  return mk(true, fixtures.length, playersSet, unmatched, teamsSet, "ok");
+  await writeSyncState(finished.length, playersSet, unmatched, teamsSet, "ok");
+  return mk(true, finished.length, playersSet, unmatched, teamsSet, "ok");
 }
 
 async function writeSyncState(

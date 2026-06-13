@@ -1563,7 +1563,7 @@ export const SQUADS: Record<string, Squad> = {
       { name: "Andrés Cubas",       number: 14, position: "MID", club: "Vancouver Whitecaps",         age: 30, photo: s(546416) },
       { name: "Gustavo Gómez",      number: 15, position: "DEF", club: "SE Palmeiras",                age: 33, photo: s(220833) },
       { name: "Damián Bobadilla",   number: 16, position: "MID", club: "São Paulo",                   age: 24, photo: s(1015261) },
-      { name: "Óscar Romero",       number: 17, position: "FWD", club: "Al-Ain",                      age: 33, photo: s(146416) },
+      { name: "Alejandro Romero",   number: 17, position: "MID", club: "Al-Ain",                      age: 31, photo: s(788936) },
       { name: "Álex Arce",          number: 18, position: "FWD", club: "Independiente Rivadavia",     age: 30, photo: s(1167312) },
       { name: "Julio Enciso",       number: 19, position: "FWD", club: "RC Strasbourg Alsace",        age: 22, photo: s(973556) },
       { name: "Braian Ojeda",       number: 20, position: "MID", club: "Orlando City",                age: 25, photo: s(883206) },
