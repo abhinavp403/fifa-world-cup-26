@@ -6,7 +6,8 @@
 import { NextResponse } from "next/server";
 
 import { getMatches } from "@/lib/footballData";
-import { resolveBracket, resolveChampion, resolveGroups } from "@/lib/resolver";
+import { findLocalTeam, resolveBracket, resolveChampion, resolveGroups } from "@/lib/resolver";
+import { getS7WorldCupEvents } from "@/lib/sportApi7";
 import { aggregateWorldCupTeamStats } from "@/lib/teamFixtureStats";
 import { getTeamFixtureStats } from "@/lib/squadsData";
 
@@ -18,9 +19,10 @@ export async function GET() {
   // Prefer the DB-cached team stats (written by the sync cron) — instant, no
   // per-request API fan-out. Fall back to live aggregation when the table is
   // empty or Supabase isn't configured.
-  const [matches, dbTeamStats] = await Promise.all([
+  const [matches, dbTeamStats, s7events] = await Promise.all([
     getMatches(2026),
     getTeamFixtureStats(),
+    getS7WorldCupEvents(),
   ]);
   const teamFixtureStats =
     dbTeamStats ?? (await aggregateWorldCupTeamStats(2026));
@@ -30,6 +32,38 @@ export async function GET() {
   const groups = resolveGroups(matches);
   const { rounds, thirdPlace } = resolveBracket(matches);
   const champion = resolveChampion(matches);
+
+  // Attach a Sofascore event id to each match (keyed by the unordered team-code
+  // pair + day) so the analytics modal can load real per-match data. Two teams
+  // meet at most once in the group stage, so the pair is a reliable key.
+  const s7ByPair = new Map<string, { id: number; day: string }[]>();
+  for (const ev of s7events) {
+    const h = findLocalTeam({ id: 0, name: ev.home });
+    const a = findLocalTeam({ id: 0, name: ev.away });
+    if (!h || !a) continue;
+    const key = [h.code, a.code].sort().join("-");
+    const day = new Date(ev.startTimestamp * 1000).toISOString().slice(0, 10);
+    const list = s7ByPair.get(key) ?? [];
+    list.push({ id: ev.id, day });
+    s7ByPair.set(key, list);
+  }
+  const lookupEvent = (homeCode: string, awayCode: string, utcDate: string) => {
+    const list = s7ByPair.get([homeCode, awayCode].sort().join("-"));
+    if (!list || list.length === 0) return null;
+    if (list.length === 1) return list[0].id;
+    const day = utcDate.slice(0, 10);
+    return (list.find((x) => x.day === day) ?? list[0]).id;
+  };
+  // Only played/in-progress matches get an analytics id — upcoming matches keep
+  // fixtureId null so a click shows the simple "not played yet" dialog.
+  const PLAYED = new Set(["FINISHED", "AWARDED", "IN_PLAY", "PAUSED"]);
+  for (const g of groups) {
+    for (const m of g.matches ?? []) {
+      m.fixtureId = PLAYED.has(m.status)
+        ? lookupEvent(m.homeCode, m.awayCode, m.utcDate)
+        : null;
+    }
+  }
 
   const live = matches != null;
 

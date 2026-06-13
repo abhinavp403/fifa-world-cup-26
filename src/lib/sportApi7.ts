@@ -124,3 +124,42 @@ export async function getS7Incidents(id: number) {
   const json = await s7<{ incidents: S7Incident[] }>(`event/${id}/incidents`);
   return json?.incidents ?? null;
 }
+
+// ── World Cup 2026 fixtures (Sofascore unique-tournament 16, season 58210) ──
+// Used to attach a Sofascore event id to each dashboard match so the analytics
+// modal can fetch real per-match data (stats/lineups/incidents).
+const S7_WC_TOURNAMENT = 16;
+const S7_WC_SEASON_2026 = 58210;
+
+export type S7WorldCupEvent = {
+  id: number;
+  home: string;
+  away: string;
+  startTimestamp: number;
+  statusType: string; // "finished" | "inprogress" | "notstarted" | …
+};
+
+export async function getS7WorldCupEvents(): Promise<S7WorldCupEvent[]> {
+  const base = `unique-tournament/${S7_WC_TOURNAMENT}/season/${S7_WC_SEASON_2026}/events`;
+  // `last` = played/in-progress (most recent first), `next` = upcoming.
+  const pages = await Promise.all([
+    s7<{ events: S7Event[] }>(`${base}/last/0`),
+    s7<{ events: S7Event[] }>(`${base}/next/0`),
+  ]);
+  const out: S7WorldCupEvent[] = [];
+  const seen = new Set<number>();
+  for (const page of pages) {
+    for (const e of page?.events ?? []) {
+      if (seen.has(e.id)) continue;
+      seen.add(e.id);
+      out.push({
+        id: e.id,
+        home: e.homeTeam.name,
+        away: e.awayTeam.name,
+        startTimestamp: e.startTimestamp,
+        statusType: e.status?.type ?? "",
+      });
+    }
+  }
+  return out;
+}

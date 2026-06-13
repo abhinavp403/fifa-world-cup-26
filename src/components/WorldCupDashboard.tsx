@@ -1438,7 +1438,8 @@ export default function WorldCupDashboard({
 
   const handleMatchClick = (fixtureId: number | null, label: string, date: string) => {
     if (fixtureId != null) {
-      setSelectedMatch({ type: "analytics", fixtureId, source: "apifootball" });
+      // fixtureId is a Sofascore event id (attached in /api/worldcup).
+      setSelectedMatch({ type: "analytics", fixtureId, source: "rapidapi" });
     } else {
       setSelectedMatch({ type: "upcoming", label, date });
     }
