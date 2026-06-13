@@ -87,6 +87,7 @@ export type MatchPlayer = {
   expectedAssists: number | null;
   cards: { yellow: number; red: number };
   substitute: boolean;
+  subbedOff: boolean; // started but replaced (from substitution events)
 };
 
 export type MatchFormationPlayer = {
@@ -256,6 +257,13 @@ function buildSide(
       expectedAssists: null,
       cards: { yellow: s?.cards.yellow ?? 0, red: s?.cards.red ?? 0 },
       substitute: s?.games.substitute ?? false,
+      // api-football doesn't pass sub events here — infer from minutes (a
+      // starter off before 90' and not sent off).
+      subbedOff:
+        !(s?.games.substitute ?? false) &&
+        (s?.games.minutes ?? 0) > 0 &&
+        (s?.games.minutes ?? 0) < 90 &&
+        (s?.cards.red ?? 0) === 0,
     };
   });
 
@@ -401,6 +409,15 @@ function buildS7Side(
     }
   }
 
+  // Players who were substituted off (from the incidents feed), by player id.
+  const subbedOffIds = new Set<number>();
+  for (const inc of incidents ?? []) {
+    if (inc.isHome !== (side === "home")) continue;
+    if (inc.incidentType === "substitution" && inc.playerOut) {
+      subbedOffIds.add(inc.playerOut.id);
+    }
+  }
+
   const players: MatchPlayer[] = (lineup?.players ?? []).map((lp) => {
     const s = lp.statistics ?? {};
     const totalPass = s.totalPass ?? 0;
@@ -439,6 +456,7 @@ function buildS7Side(
         red: redByPlayer.get(lp.player.id) ?? 0,
       },
       substitute: lp.substitute,
+      subbedOff: !lp.substitute && subbedOffIds.has(lp.player.id),
     };
   });
 

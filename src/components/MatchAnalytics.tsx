@@ -263,7 +263,7 @@ function CompactPlayerRow({
           {player.substitute && (
             <span className="text-[9px] text-gray-600">(sub)</span>
           )}
-          {!player.substitute && player.minutes > 0 && player.minutes < 90 && player.cards.red === 0 && (
+          {player.subbedOff && (
             <span className="text-[9px] font-semibold text-orange-400/80">↓{player.minutes}'</span>
           )}
           {player.cards.yellow > 0 &&
@@ -538,7 +538,9 @@ function FormationPitch({
             if (stats.assists > 0) flags.push("👟");
             if (stats.cards.red > 0) flags.push("🟥");
             else if (stats.cards.yellow > 0) flags.push("🟨");
-            if (!stats.substitute && stats.minutes < 90 && stats.minutes > 0) {
+            // Subbed-off icon — from real substitution events (excludes
+            // sent-off players, who leave the pitch but aren't substituted).
+            if (stats.subbedOff) {
               flags.push("🔄");
             }
           }
