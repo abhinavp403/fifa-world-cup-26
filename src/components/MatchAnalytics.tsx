@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
+  Star,
   X,
 } from "lucide-react";
 
@@ -1035,7 +1036,7 @@ export default function MatchAnalytics({
     );
   }
 
-  const { home, away, events, venue, date, competition, round } = data;
+  const { home, away, events, venue, date, competition, round, manOfTheMatch } = data;
 
   const homeColors = resolveTeamColors(home.team.name);
   const awayColors = resolveTeamColors(away.team.name);
@@ -1237,6 +1238,25 @@ export default function MatchAnalytics({
             <h3 className="text-white text-xl font-bold">Player Performance Ratings</h3>
             <RatingLegend />
           </div>
+          {manOfTheMatch && (
+            <div className="flex items-center gap-3 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-bold">
+                  Man of the Match
+                </p>
+                <p className="text-white font-bold text-sm truncate">
+                  {manOfTheMatch.name}
+                  <span className="text-gray-500 font-normal"> · {manOfTheMatch.teamName}</span>
+                </p>
+              </div>
+              <span
+                className={`${ratingBadgeStyle(manOfTheMatch.rating)} text-sm font-bold px-2.5 py-1 rounded-lg flex-shrink-0`}
+              >
+                {manOfTheMatch.rating.toFixed(1)}
+              </span>
+            </div>
+          )}
           <ColumnLegend />
           <div className="mt-5" />
           <div className="grid lg:grid-cols-2 gap-6">

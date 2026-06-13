@@ -125,6 +125,21 @@ export async function getS7Incidents(id: number) {
   return json?.incidents ?? null;
 }
 
+// Best (highest-rated) player per side — used to surface the man of the match.
+export type S7BestPlayer = {
+  player: { id: number; name: string; position?: string };
+  value: string; // rating, as a string e.g. "8.8"
+  label: string; // "rating"
+};
+export type S7BestPlayers = {
+  bestHomeTeamPlayer?: S7BestPlayer;
+  bestAwayTeamPlayer?: S7BestPlayer;
+};
+
+export async function getS7BestPlayers(id: number) {
+  return s7<S7BestPlayers>(`event/${id}/best-players`);
+}
+
 // ── World Cup 2026 fixtures (Sofascore unique-tournament 16, season 58210) ──
 // Used to attach a Sofascore event id to each dashboard match so the analytics
 // modal can fetch real per-match data (stats/lineups/incidents).

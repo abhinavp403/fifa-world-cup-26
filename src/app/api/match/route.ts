@@ -21,10 +21,12 @@ import {
   type AFStatistic,
 } from "@/lib/apiFootball";
 import {
+  getS7BestPlayers,
   getS7Event,
   getS7Incidents,
   getS7Lineups,
   getS7Statistics,
+  type S7BestPlayers,
   type S7Incident,
   type S7LineupSide,
   type S7StatPeriod,
@@ -117,6 +119,14 @@ export type MatchEvent = {
   detail: string;
 };
 
+export type ManOfTheMatch = {
+  id: number;
+  name: string;
+  rating: number;
+  side: "home" | "away";
+  teamName: string;
+};
+
 export type MatchPayload = {
   live: boolean;
   fixtureId: number;
@@ -128,6 +138,7 @@ export type MatchPayload = {
   home: MatchSide;
   away: MatchSide;
   events: MatchEvent[];
+  manOfTheMatch: ManOfTheMatch | null;
   updatedAt: string;
 };
 
@@ -506,14 +517,35 @@ function buildS7Side(
   };
 }
 
+// Man of the match = the higher-rated of the two teams' best players.
+function s7ManOfTheMatch(
+  best: S7BestPlayers | null,
+  ev: NonNullable<Awaited<ReturnType<typeof getS7Event>>>,
+): ManOfTheMatch | null {
+  const h = best?.bestHomeTeamPlayer;
+  const a = best?.bestAwayTeamPlayer;
+  const hr = h ? parseFloat(h.value) : NaN;
+  const ar = a ? parseFloat(a.value) : NaN;
+  const useHome = !Number.isNaN(hr) && (Number.isNaN(ar) || hr >= ar);
+  const useAway = !Number.isNaN(ar) && (Number.isNaN(hr) || ar > hr);
+  if (useHome && h) {
+    return { id: h.player.id, name: h.player.name, rating: hr, side: "home", teamName: ev.homeTeam.name };
+  }
+  if (useAway && a) {
+    return { id: a.player.id, name: a.player.name, rating: ar, side: "away", teamName: ev.awayTeam.name };
+  }
+  return null;
+}
+
 async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
   const ev = await getS7Event(id);
   if (!ev) return null;
 
-  const [stats, lineups, incidents] = await Promise.all([
+  const [stats, lineups, incidents, best] = await Promise.all([
     getS7Statistics(id),
     getS7Lineups(id),
     getS7Incidents(id),
+    getS7BestPlayers(id),
   ]);
 
   const home = buildS7Side(ev, "home", stats, lineups?.home, incidents);
@@ -565,6 +597,7 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
     home,
     away,
     events,
+    manOfTheMatch: s7ManOfTheMatch(best, ev),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -636,6 +669,7 @@ export async function GET(request: Request) {
     home,
     away,
     events: matchEvents,
+    manOfTheMatch: null, // not exposed by api-football
     updatedAt: new Date().toISOString(),
   };
 
