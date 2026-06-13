@@ -618,73 +618,6 @@ function StatStrip() {
 // Groups
 // ─────────────────────────────────────────────────────────────────────────────
 
-function rankTier(rank: number): { label: string; color: string } {
-  if (rank <= 10) return { label: "Elite", color: "text-emerald-300" };
-  if (rank <= 25) return { label: "Contender", color: "text-[var(--accent-300)]" };
-  if (rank <= 50) return { label: "Solid", color: "text-amber-300" };
-  return { label: "Outsider", color: "text-rose-300" };
-}
-
-function TeamRow({
-  team,
-  onTeamClick,
-}: {
-  team: Team;
-  onTeamClick?: (code: string) => void;
-}) {
-  const squads     = useSquads();
-  const tier       = rankTier(team.fifaRank);
-  const hasSquad   = !!squads[team.code];
-  const clickable  = hasSquad && !!onTeamClick;
-
-  const inner = (
-    <>
-      <FlagImage code={team.code} size="md" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-white font-semibold text-sm truncate">{team.name}</p>
-          {team.host && (
-            <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded">
-              HOST
-            </span>
-          )}
-        </div>
-        <p className="text-gray-500 text-[11px] truncate">
-          {team.code} · {team.confederation} · {team.appearances} WC
-          {team.appearances === 1 ? "" : "s"}
-        </p>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <div className="flex items-center gap-1 justify-end">
-          <TrendingUp className={`w-3 h-3 ${tier.color}`} />
-          <span className={`text-[11px] font-semibold ${tier.color}`}>
-            #{team.fifaRank}
-          </span>
-        </div>
-        <p className="text-gray-600 text-[10px] mt-0.5">{tier.label}</p>
-      </div>
-    </>
-  );
-
-  if (clickable) {
-    return (
-      <button
-        type="button"
-        onClick={() => onTeamClick(team.code)}
-        className="w-full flex items-center gap-3 py-2.5 border-b border-[var(--border-card)] last:border-b-0 hover:bg-[var(--border-card)]/60 transition-colors cursor-pointer text-left rounded-lg px-1 -mx-1"
-      >
-        {inner}
-      </button>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-[var(--border-card)] last:border-b-0">
-      {inner}
-    </div>
-  );
-}
-
 function StandingsTable({
   rows,
   onTeamClick,
@@ -881,18 +814,28 @@ function GroupCard({
           </span>
         </div>
 
-        {rows && rows.length > 0 ? (
-          <StandingsTable rows={rows} onTeamClick={onTeamClick} />
-        ) : (
-          <div className="mt-3">
-            {group.teams
-              .slice()
-              .sort((a, b) => a.fifaRank - b.fifaRank)
-              .map((t) => (
-                <TeamRow key={t.code} team={t} onTeamClick={onTeamClick} />
-              ))}
-          </div>
-        )}
+        <StandingsTable
+          rows={
+            rows && rows.length > 0
+              ? rows
+              : group.teams
+                  .slice()
+                  .sort((a, b) => a.fifaRank - b.fifaRank)
+                  .map((team, idx) => ({
+                    team,
+                    position: idx + 1,
+                    played: 0,
+                    won: 0,
+                    drawn: 0,
+                    lost: 0,
+                    gf: 0,
+                    ga: 0,
+                    gd: 0,
+                    points: 0,
+                  }))
+          }
+          onTeamClick={onTeamClick}
+        />
 
         {/* See All Matches toggle */}
         <div className="mt-3 pt-3 border-t border-[var(--border-card)]">
