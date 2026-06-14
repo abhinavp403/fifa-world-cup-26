@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Star,
   X,
+  Play,
 } from "lucide-react";
 
 import type {
@@ -957,17 +958,20 @@ export default function MatchAnalytics({
   const [data, setData] = useState<MatchPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [highlightsUrl, setHighlightsUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (fixtureId == null) {
       setData(null);
       setError(null);
       setLoading(false);
+      setHighlightsUrl(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setHighlightsUrl(null);
     (async () => {
       try {
         const res = await fetch(
@@ -978,7 +982,13 @@ export default function MatchAnalytics({
         if (!json.live) {
           setError(json.error ?? "No match data available");
         } else {
-          setData(json as MatchPayload);
+          const payload = json as MatchPayload;
+          setData(payload);
+          // Fetch highlights in parallel after we have team names
+          const h = await fetch(
+            `/api/highlights?home=${encodeURIComponent(payload.home.team.name)}&away=${encodeURIComponent(payload.away.team.name)}`,
+          ).then((r) => r.json()).catch(() => null);
+          if (!cancelled && h?.url) setHighlightsUrl(h.url);
         }
       } catch (err) {
         if (!cancelled) setError(String(err));
@@ -1150,6 +1160,19 @@ export default function MatchAnalytics({
               day: "numeric",
             })}
           </p>
+          {highlightsUrl && (
+            <div className="flex justify-center mt-3">
+              <a
+                href={highlightsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-600/20 border border-red-500/40 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors text-sm font-semibold"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                Watch Highlights · FOX Sports
+              </a>
+            </div>
+          )}
         </motion.div>
 
         {/* Key stats grid */}
