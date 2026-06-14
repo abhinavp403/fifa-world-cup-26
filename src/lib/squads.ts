@@ -202,7 +202,7 @@ export const SQUADS: Record<string, Squad> = {
       { name: "Lee Han-beom",     number: 2,  position: "DEF", club: "FC Midtjylland",           age: 23, photo: s(1002448) },
       { name: "Kim Tae-hyeon",    number: 5,  position: "DEF", club: "Kashima Antlers",          age: 25, photo: s(976203) },
       { name: "Park Jin-seob",    number: 16, position: "DEF", club: "Zhejiang FC",              age: 30, photo: s(1026069) },
-      { name: "Lee Gi-hyuk",      number: 3,  position: "DEF", club: "Gangwon FC",               age: 24, photo: s(1104925) },
+      { name: "Lee Gi-hyuk",      number: 3,  position: "DEF", club: "Gangwon FC",               age: 24, photo: s(1103520) },
       { name: "Lee Tae-seok",     number: 13, position: "DEF", club: "Austria Wien",             age: 23, photo: s(1002355) },
       { name: "Seol Young-woo",   number: 22, position: "DEF", club: "FK Crvena zvezda",         age: 27, photo: s(1019333) },
       { name: "Jens Castrop",     number: 23, position: "DEF", club: "Borussia Mönchengladbach", age: 22, photo: s(1019312) },
