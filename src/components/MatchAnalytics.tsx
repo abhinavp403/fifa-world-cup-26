@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import FlagImage from "@/components/Flag";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -1122,14 +1122,9 @@ export default function MatchAnalytics({
           <div className="flex items-center justify-center gap-6 mb-4">
             <div className="text-center flex-1">
               <div className="flex justify-center mb-2">
-                <Image
-                  src={home.team.logo}
-                  alt={home.team.name}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12"
-                  unoptimized
-                />
+                {home.team.fifaCode && (
+                  <FlagImage code={home.team.fifaCode} size="lg" className="w-16 h-10" />
+                )}
               </div>
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {home.team.name}
@@ -1139,14 +1134,9 @@ export default function MatchAnalytics({
             <div className="text-gray-500 text-2xl font-bold">VS</div>
             <div className="text-center flex-1">
               <div className="flex justify-center mb-2">
-                <Image
-                  src={away.team.logo}
-                  alt={away.team.name}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12"
-                  unoptimized
-                />
+                {away.team.fifaCode && (
+                  <FlagImage code={away.team.fifaCode} size="lg" className="w-16 h-10" />
+                )}
               </div>
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {away.team.name}

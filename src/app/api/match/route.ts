@@ -8,6 +8,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { S7_NAME_TO_FIFA } from "@/lib/flags";
 
 import {
   getFixture,
@@ -41,6 +42,7 @@ export type TeamSummary = {
   id: number;
   name: string;
   logo: string;
+  fifaCode: string | null;
   goals: number;
   shots: number;
   shotsOnTarget: number;
@@ -103,7 +105,7 @@ export type MatchFormationPlayer = {
 };
 
 export type MatchSide = {
-  team: { id: number; name: string; logo: string };
+  team: { id: number; name: string; logo: string; fifaCode: string | null };
   stats: TeamSummary;
   formation: string;
   startXI: MatchFormationPlayer[];
@@ -156,7 +158,7 @@ function statNum(stats: AFStatistic | undefined, type: string): number {
 }
 
 function buildTeamSummary(
-  team: { id: number; name: string; logo: string },
+  team: { id: number; name: string; logo: string; fifaCode?: string | null },
   goals: number,
   stats: AFStatistic | undefined,
 ): TeamSummary {
@@ -164,6 +166,7 @@ function buildTeamSummary(
     id: team.id,
     name: team.name,
     logo: team.logo,
+    fifaCode: S7_NAME_TO_FIFA[team.name] ?? null,
     goals,
     shots: statNum(stats, "Total Shots"),
     shotsOnTarget: statNum(stats, "Shots on Goal"),
@@ -219,7 +222,8 @@ function buildSide(
   lineups: AFLineup[] | null,
   players: AFPlayerStats[] | null,
 ): MatchSide {
-  const team = fixture.teams[side];
+  const t = fixture.teams[side];
+  const team = { ...t, fifaCode: S7_NAME_TO_FIFA[t.name] ?? null };
   const goals = fixture.goals[side] ?? 0;
   const teamStats = stats?.find((s) => s.team.id === team.id);
   const teamLineup = lineups?.find((l) => l.team.id === team.id);
@@ -351,8 +355,7 @@ function classifyEvent(e: AFEvent): MatchEvent["type"] {
 // Maps the Sofascore event/statistics/lineups/incidents payloads into the same
 // MatchPayload shape so the analytics UI renders identically to api-football.
 
-const S7_LOGO = (id: number) =>
-  `https://img.sofascore.com/api/v1/team/${id}/image`;
+const S7_LOGO = (id: number) => `/api/team-logo/${id}`;
 
 function s7TeamStat(
   stats: S7StatPeriod[] | null,
@@ -377,7 +380,7 @@ function buildS7Side(
   incidents: S7Incident[] | null,
 ): MatchSide {
   const t = side === "home" ? ev.homeTeam : ev.awayTeam;
-  const team = { id: t.id, name: t.name, logo: S7_LOGO(t.id) };
+  const team = { id: t.id, name: t.name, logo: S7_LOGO(t.id), fifaCode: S7_NAME_TO_FIFA[t.name] ?? null };
   const goals =
     (side === "home" ? ev.homeScore.current : ev.awayScore.current) ?? 0;
 
@@ -388,6 +391,7 @@ function buildS7Side(
     id: team.id,
     name: team.name,
     logo: team.logo,
+    fifaCode: team.fifaCode,
     goals,
     shots: s7TeamStat(stats, "totalShotsOnGoal", side),
     shotsOnTarget: s7TeamStat(stats, "shotsOnGoal", side),
