@@ -350,7 +350,8 @@ function classifyEvent(e: AFEvent): MatchEvent["type"] {
 // Maps the Sofascore event/statistics/lineups/incidents payloads into the same
 // MatchPayload shape so the analytics UI renders identically to api-football.
 
-const S7_LOGO = (id: number) => `/api/team-logo/${id}`;
+const S7_LOGO = (id: number) =>
+  `https://img.sofascore.com/api/v1/team/${id}/image`;
 
 function s7TeamStat(
   stats: S7StatPeriod[] | null,
