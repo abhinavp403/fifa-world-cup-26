@@ -7,6 +7,7 @@
 // automatically. Manual runs must include the same header.
 
 import { NextResponse } from "next/server";
+import { syncMotm } from "@/lib/motmSync";
 import { syncStats } from "@/lib/statsSync";
 
 // never cache; always run fresh
@@ -23,8 +24,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const summary = await syncStats(2026);
-    return NextResponse.json({ ...summary, ranAt: new Date().toISOString() });
+    const [summary, motm] = await Promise.all([syncStats(2026), syncMotm()]);
+    return NextResponse.json({ ...summary, motm, ranAt: new Date().toISOString() });
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : String(err) },

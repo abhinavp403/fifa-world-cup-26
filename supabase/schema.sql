@@ -44,6 +44,24 @@ drop policy if exists "public read players" on public.players;
 create policy "public read teams"   on public.teams   for select using (true);
 create policy "public read players" on public.players for select using (true);
 
+-- Man of the Match: one row per match, keyed by team names as returned by FIFA.
+-- Populated by `npm run sync:motm` (local Chrome headless scraper).
+create table if not exists public.match_motm (
+  id          bigint generated always as identity primary key,
+  home_team   text not null,
+  away_team   text not null,
+  player_name text not null,
+  player_team text not null,
+  updated_at  timestamptz not null default now(),
+  unique (home_team, away_team)
+);
+
+alter table public.match_motm enable row level security;
+drop policy if exists "public read match_motm" on public.match_motm;
+create policy "public read match_motm" on public.match_motm for select using (true);
+drop trigger if exists match_motm_touch on public.match_motm;
+create trigger match_motm_touch before update on public.match_motm for each row execute function public.touch_updated_at();
+
 -- keep updated_at fresh on any write
 create or replace function public.touch_updated_at() returns trigger as $$
 begin

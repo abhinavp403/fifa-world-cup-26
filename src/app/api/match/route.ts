@@ -6,6 +6,7 @@
 // Optional query params:
 //   ?id=<fixtureId> to fetch a specific fixture instead.
 
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import {
@@ -518,7 +519,28 @@ function buildS7Side(
   };
 }
 
-// Man of the match = the higher-rated of the two teams' best players.
+// Try to get MOTM from Supabase (populated by `npm run sync:motm` which scrapes FIFA).
+// Returns null if not found — caller falls back to Sofascore ratings.
+async function fifaMotm(
+  homeName: string,
+  awayName: string,
+): Promise<ManOfTheMatch | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  const { data } = await sb
+    .from("match_motm")
+    .select("player_name,player_team")
+    .eq("home_team", homeName)
+    .eq("away_team", awayName)
+    .maybeSingle();
+  if (!data) return null;
+  const side = data.player_team === homeName ? "home" : "away";
+  return { id: 0, name: data.player_name, rating: 0, side, teamName: data.player_team };
+}
+
+// Sofascore fallback: pick the higher-rated of the two teams' best players.
 function s7ManOfTheMatch(
   best: S7BestPlayers | null,
   ev: NonNullable<Awaited<ReturnType<typeof getS7Event>>>,
@@ -601,7 +623,9 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
     home,
     away,
     events,
-    manOfTheMatch: s7ManOfTheMatch(best, ev),
+    manOfTheMatch:
+      (await fifaMotm(ev.homeTeam.name, ev.awayTeam.name)) ??
+      s7ManOfTheMatch(best, ev),
     updatedAt: new Date().toISOString(),
   };
 }

@@ -125,6 +125,8 @@ function ComparisonRow({
   awayColor: string;
   unit?: string;
 }) {
+  if (homeValue === 0 && awayValue === 0) return null;
+
   const total = homeValue + awayValue;
   const homePct = total > 0 ? (homeValue / total) * 100 : 50;
   const awayPct = total > 0 ? (awayValue / total) * 100 : 50;
@@ -1301,11 +1303,6 @@ export default function MatchAnalytics({
                   <span className="text-gray-500 font-normal"> · {manOfTheMatch.teamName}</span>
                 </p>
               </div>
-              <span
-                className={`${ratingBadgeStyle(manOfTheMatch.rating)} text-sm font-bold px-2.5 py-1 rounded-lg flex-shrink-0`}
-              >
-                {manOfTheMatch.rating.toFixed(1)}
-              </span>
             </div>
           )}
           <ColumnLegend />
