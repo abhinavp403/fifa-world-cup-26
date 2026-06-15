@@ -8,7 +8,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { S7_NAME_TO_FIFA } from "@/lib/flags";
+import { S7_NAME_TO_FIFA, FIFA_ARTICLE_TO_CODE } from "@/lib/flags";
 
 import {
   getFixture,
@@ -23,12 +23,10 @@ import {
   type AFStatistic,
 } from "@/lib/apiFootball";
 import {
-  getS7BestPlayers,
   getS7Event,
   getS7Incidents,
   getS7Lineups,
   getS7Statistics,
-  type S7BestPlayers,
   type S7Incident,
   type S7LineupSide,
   type S7StatPeriod,
@@ -532,47 +530,49 @@ async function fifaMotm(
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
+
+  // FIFA's article spells team names differently from Sofascore, so match by
+  // FIFA code instead of raw name. Bail early if we can't resolve either side.
+  const homeCode = S7_NAME_TO_FIFA[homeName];
+  const awayCode = S7_NAME_TO_FIFA[awayName];
+  if (!homeCode || !awayCode) return null;
+
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { data } = await sb
     .from("match_motm")
-    .select("player_name,player_team")
-    .eq("home_team", homeName)
-    .eq("away_team", awayName)
-    .maybeSingle();
+    .select("home_team,away_team,player_name,player_team");
   if (!data) return null;
-  const side = data.player_team === homeName ? "home" : "away";
-  return { id: 0, name: data.player_name, rating: 0, side, teamName: data.player_team };
-}
 
-// Sofascore fallback: pick the higher-rated of the two teams' best players.
-function s7ManOfTheMatch(
-  best: S7BestPlayers | null,
-  ev: NonNullable<Awaited<ReturnType<typeof getS7Event>>>,
-): ManOfTheMatch | null {
-  const h = best?.bestHomeTeamPlayer;
-  const a = best?.bestAwayTeamPlayer;
-  const hr = h ? parseFloat(h.value) : NaN;
-  const ar = a ? parseFloat(a.value) : NaN;
-  const useHome = !Number.isNaN(hr) && (Number.isNaN(ar) || hr >= ar);
-  const useAway = !Number.isNaN(ar) && (Number.isNaN(hr) || ar > hr);
-  if (useHome && h) {
-    return { id: h.player.id, name: h.player.name, rating: hr, side: "home", teamName: ev.homeTeam.name };
-  }
-  if (useAway && a) {
-    return { id: a.player.id, name: a.player.name, rating: ar, side: "away", teamName: ev.awayTeam.name };
-  }
-  return null;
+  // Match the fixture by code, regardless of home/away ordering.
+  const row = data.find((r) => {
+    const rh = FIFA_ARTICLE_TO_CODE[r.home_team];
+    const ra = FIFA_ARTICLE_TO_CODE[r.away_team];
+    return (
+      (rh === homeCode && ra === awayCode) ||
+      (rh === awayCode && ra === homeCode)
+    );
+  });
+  if (!row) return null;
+
+  const side =
+    FIFA_ARTICLE_TO_CODE[row.player_team] === homeCode ? "home" : "away";
+  return {
+    id: 0,
+    name: row.player_name,
+    rating: 0,
+    side,
+    teamName: side === "home" ? homeName : awayName,
+  };
 }
 
 async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
   const ev = await getS7Event(id);
   if (!ev) return null;
 
-  const [stats, lineups, incidents, best] = await Promise.all([
+  const [stats, lineups, incidents] = await Promise.all([
     getS7Statistics(id),
     getS7Lineups(id),
     getS7Incidents(id),
-    getS7BestPlayers(id),
   ]);
 
   const home = buildS7Side(ev, "home", stats, lineups?.home, incidents);
@@ -627,9 +627,8 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
     home,
     away,
     events,
-    manOfTheMatch:
-      (await fifaMotm(ev.homeTeam.name, ev.awayTeam.name)) ??
-      s7ManOfTheMatch(best, ev),
+    // Only the FIFA scraper supplies MOTM; no fallback — show nothing until it does.
+    manOfTheMatch: await fifaMotm(ev.homeTeam.name, ev.awayTeam.name),
     updatedAt: new Date().toISOString(),
   };
 }
