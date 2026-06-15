@@ -38,6 +38,7 @@ import type { Squad } from "@/lib/squads";
 import { SquadsProvider, useSquads } from "@/lib/squadsContext";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
+import { normalizeText } from "@/lib/text";
 import FlagImage from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -908,14 +909,14 @@ function GroupsSection({
   );
 
   const filteredGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = normalizeText(search.trim());
     if (!q && confFilter === "ALL") return GROUPS;
     return GROUPS.map((g) => {
       const teams = g.teams.filter((t) => {
         const matchesSearch =
           !q ||
-          t.name.toLowerCase().includes(q) ||
-          t.code.toLowerCase().includes(q);
+          normalizeText(t.name).includes(q) ||
+          normalizeText(t.code).includes(q);
         const matchesConf =
           confFilter === "ALL" || t.confederation === confFilter;
         return matchesSearch && matchesConf;

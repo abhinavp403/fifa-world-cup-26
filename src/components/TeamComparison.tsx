@@ -10,6 +10,7 @@ import type { Round, Match } from "@/lib/bracket";
 import type { ResolvedGroup } from "@/lib/resolver";
 import TeamStatsModal from "@/components/TeamStatsModal";
 import Flag from "@/components/Flag";
+import { normalizeText } from "@/lib/text";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -256,10 +257,10 @@ function TeamPicker({
   const selected = value ? ALL_TEAMS.find((t) => t.code === value) : null;
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalizeText(query.trim());
     return [...ALL_TEAMS]
       .sort((a, b) => a.name.localeCompare(b.name))
-      .filter((t) => !q || t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q));
+      .filter((t) => !q || normalizeText(t.name).includes(q) || normalizeText(t.code).includes(q));
   }, [query]);
 
   return (

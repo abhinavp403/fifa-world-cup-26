@@ -18,6 +18,7 @@ import { GROUPS, TEAM_COLORS } from "@/lib/worldcup";
 import { type SquadPlayer, type PlayerStats } from "@/lib/squads";
 import { useSquads } from "@/lib/squadsContext";
 import Flag from "@/components/Flag";
+import { normalizeText } from "@/lib/text";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -679,10 +680,10 @@ export default function PlayersSection({
   }, [squads]);
 
   const searchResults = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = normalizeText(search.trim());
     if (q.length === 0) return [];
     return allPlayers
-      .filter((p) => p.player.name.toLowerCase().includes(q))
+      .filter((p) => normalizeText(p.player.name).includes(q))
       .filter((p) => posFilter === "ALL" || p.player.position === posFilter)
       .sort((a, b) => a.player.name.localeCompare(b.player.name))
       .slice(0, 25);
