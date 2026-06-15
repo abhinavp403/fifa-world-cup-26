@@ -626,7 +626,7 @@ function StandingsTable({
   onTeamClick?: (code: string) => void;
 }) {
   const squads = useSquads();
-  const cols = "grid grid-cols-[1.6rem_1fr_repeat(4,1.4rem)_1.9rem] gap-1";
+  const cols = "grid grid-cols-[1.6rem_1fr_repeat(4,1.4rem)_2rem_1.9rem] gap-1";
   return (
     <div className="mt-3 border border-[var(--border-card)] rounded-lg overflow-hidden">
       <div className={`${cols} px-3 py-2.5 bg-[var(--bg-darker)]/50 text-[10px] uppercase tracking-widest text-gray-500 font-bold`}>
@@ -636,6 +636,7 @@ function StandingsTable({
         <div className="text-right">W</div>
         <div className="text-right">D</div>
         <div className="text-right">L</div>
+        <div className="text-right">GD</div>
         <div className="text-right">Pts</div>
       </div>
       {rows.map((r) => {
@@ -664,6 +665,9 @@ function StandingsTable({
             <div className="text-right text-gray-300 tabular-nums">{r.won}</div>
             <div className="text-right text-gray-300 tabular-nums">{r.drawn}</div>
             <div className="text-right text-gray-300 tabular-nums">{r.lost}</div>
+            <div className="text-right text-gray-300 tabular-nums">
+              {r.gd > 0 ? `+${r.gd}` : r.gd}
+            </div>
             <div className="text-right text-white font-bold tabular-nums">
               {r.points}
             </div>
