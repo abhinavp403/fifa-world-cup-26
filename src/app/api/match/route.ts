@@ -357,8 +357,6 @@ function classifyEvent(e: AFEvent): MatchEvent["type"] {
 // Maps the Sofascore event/statistics/lineups/incidents payloads into the same
 // MatchPayload shape so the analytics UI renders identically to api-football.
 
-const S7_LOGO = (id: number) => `/api/team-logo/${id}`;
-
 function s7TeamStat(
   stats: S7StatPeriod[] | null,
   key: string,
@@ -382,7 +380,10 @@ function buildS7Side(
   incidents: S7Incident[] | null,
 ): MatchSide {
   const t = side === "home" ? ev.homeTeam : ev.awayTeam;
-  const team = { id: t.id, name: t.name, logo: S7_LOGO(t.id), fifaCode: S7_NAME_TO_FIFA[t.name] ?? null };
+  // The Sofascore analytics UI renders flags (FlagImage) rather than club-style
+  // team logos, so no logo URL is emitted here. (The api-football path still
+  // supplies real logo URLs for the competitions it covers.)
+  const team = { id: t.id, name: t.name, logo: "", fifaCode: S7_NAME_TO_FIFA[t.name] ?? null };
   const goals =
     (side === "home" ? ev.homeScore.current : ev.awayScore.current) ?? 0;
 
