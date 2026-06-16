@@ -94,6 +94,7 @@ type TodayMatch = {
   utcDate: string;
   status:  string;
   round:   string;            // "Group A", "Round of 32", "Final", etc.
+  fixtureId: number | null;   // Sofascore event id (null until the match has data)
   home:    { code: string | null; flag: string; name: string };
   away:    { code: string | null; flag: string; name: string };
   homeScore: number | null;
@@ -129,6 +130,7 @@ function allMatches(data: WorldCupPayload | null): TodayMatch[] {
         utcDate:   m.utcDate,
         status:    m.status,
         round:     `Group ${g.letter}`,
+        fixtureId: m.fixtureId,
         home:      { code: m.homeCode, flag: m.homeFlag, name: m.homeName },
         away:      { code: m.awayCode, flag: m.awayFlag, name: m.awayName },
         homeScore: m.homeScore,
@@ -144,6 +146,7 @@ function allMatches(data: WorldCupPayload | null): TodayMatch[] {
         utcDate:   m.date,
         status:    "",
         round:     round.name,
+        fixtureId: null, // knockout fixtures aren't assigned a Sofascore id yet
         home:      {
           code: m.slot1.team?.code ?? null,
           flag: m.slot1.team?.flag ?? "⚽",
@@ -195,7 +198,13 @@ function TodayStatusBadge({ status }: { status: string }) {
   return null;
 }
 
-function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
+function TodayMatchesCard({
+  data,
+  onMatchClick,
+}: {
+  data: WorldCupPayload | null;
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+}) {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -237,9 +246,17 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
       ) : (
         <div className="space-y-2">
           {matches.map((m, i) => (
-            <div
+            <button
               key={`${m.utcDate}-${i}`}
-              className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[var(--bg-darker)]/60 border border-[var(--border-card)] rounded-xl px-3 py-2.5"
+              type="button"
+              onClick={() =>
+                onMatchClick(
+                  m.fixtureId,
+                  `${m.home.name} vs ${m.away.name}`,
+                  m.utcDate,
+                )
+              }
+              className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[var(--bg-darker)]/60 border border-[var(--border-card)] rounded-xl px-3 py-2.5 text-left hover:border-[var(--accent-500)]/40 hover:bg-[var(--bg-darker)]/90 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2 min-w-0 justify-end">
                 <span className="text-white font-semibold text-sm truncate">{m.home.name}</span>
@@ -266,7 +283,7 @@ function TodayMatchesCard({ data }: { data: WorldCupPayload | null }) {
                 {m.away.code ? <FlagImage code={m.away.code} size="md" /> : <span className="text-xl leading-none flex-shrink-0">{m.away.flag}</span>}
                 <span className="text-white font-semibold text-sm truncate">{m.away.name}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -366,10 +383,12 @@ function Hero({
   data,
   theme,
   onThemeChange,
+  onMatchClick,
 }: {
   data:          WorldCupPayload | null;
   theme:         ThemeId;
   onThemeChange: (t: ThemeId) => void;
+  onMatchClick:  (fixtureId: number | null, label: string, date: string) => void;
 }) {
   const c = useCountdown(TOURNAMENT.startDate);
   const [now, setNow] = useState<number | null>(null);
@@ -451,7 +470,7 @@ function Hero({
             {phase === "post" && data?.champion ? (
               <ChampionCard champion={data.champion} />
             ) : phase === "during" ? (
-              <TodayMatchesCard data={data} />
+              <TodayMatchesCard data={data} onMatchClick={onMatchClick} />
             ) : (
               <div className="bg-[var(--bg-card)]/70 backdrop-blur-md border border-[var(--border-card)] rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-5">
@@ -1421,7 +1440,7 @@ export default function WorldCupDashboard({
     <main className={`min-h-screen bg-aurora theme-${theme}`}>
       <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
-        <Hero data={data} theme={theme} onThemeChange={updateTheme} />
+        <Hero data={data} theme={theme} onThemeChange={updateTheme} onMatchClick={handleMatchClick} />
         <StatStrip />
         <GroupsSection
           resolved={data?.groups}
