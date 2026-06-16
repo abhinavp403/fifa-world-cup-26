@@ -7,8 +7,9 @@
 //   ?id=<fixtureId> to fetch a specific fixture instead.
 
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { S7_NAME_TO_FIFA, FIFA_ARTICLE_TO_CODE } from "@/lib/flags";
+import { syncStats } from "@/lib/statsSync";
 
 import {
   getFixture,
@@ -33,6 +34,9 @@ import {
 } from "@/lib/sportApi7";
 
 export const revalidate = 300;
+// Give the after() stats sync (fires when a freshly finished match is opened)
+// room to ingest + aggregate without being cut off.
+export const maxDuration = 60;
 
 // ── Shape returned to the client ───────────────────────────────────────────
 
@@ -649,6 +653,19 @@ export async function GET(request: Request) {
         { live: false, error: "No match data available", updatedAt: new Date().toISOString() },
         { status: 200 },
       );
+    }
+    // Opportunistically fold a freshly finished match into the player/team
+    // dashboards. Runs after the response (non-blocking); syncStats only does
+    // real work the first time this fixture is seen (force:false → no-op once
+    // it's already cached). The 5-min route cache keeps this from firing often.
+    if (payload.status === "FT") {
+      after(async () => {
+        try {
+          await syncStats(2026, { force: false });
+        } catch (err) {
+          console.warn("[match] background syncStats failed:", err);
+        }
+      });
     }
     return NextResponse.json(payload);
   }

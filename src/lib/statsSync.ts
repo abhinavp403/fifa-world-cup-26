@@ -1,40 +1,42 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Live stats sync — aggregates tournament stats from sportapi7 (Sofascore)
 // and writes them into Supabase. Triggered on a schedule by
-// /api/cron/sync-stats.
+// /api/cron/sync-stats, and opportunistically (non-blocking) when a freshly
+// finished match is first opened (see /api/match → after()).
+//
+// Incremental design — two phases:
+//   1. INGEST: list finished fixtures, skip the ones already cached, and for
+//      each NEW one fetch lineups + incidents + statistics + event, compute its
+//      raw per-player and per-team contributions, and store them verbatim in
+//      `fixture_stats`. This is the only phase that hits the (rate-limited)
+//      Sofascore API, and it touches each fixture exactly once.
+//   2. AGGREGATE: sum every cached fixture row in the DB (no API calls),
+//      finalize derived fields (passAccuracy, rating, possession), match each
+//      Sofascore player to a roster row, and write players.stats + team_stats.
 //
 // Why Sofascore and not api-football: the free api-football plan can't read
-// World Cup 2026 ("Free plans do not have access to this season"), so it
-// returns zero finished fixtures and every player ends up with 0 stats.
-// sportapi7 covers WC 2026 (unique-tournament 16, season 58210) and exposes
-// rich per-player statistics in its lineups endpoint.
-//
-// What it does, each run:
-//   1. List every WC event, keep the finished ones.
-//   2. For each, pull lineups (per-player stats) + incidents (goals/cards) +
-//      the event (score/result) and sum each player's line across the whole
-//      tournament, keyed by Sofascore player id.
-//   3. Match each Sofascore player to a DB roster row — primarily by the
-//      Sofascore id encoded in the row's `photo` (/api/player-photo/<id>),
-//      falling back to name-within-team.
-//   4. Write the aggregated PlayerStats into players.stats.
-//   5. Aggregate team-level stats and write team_stats — so /api/worldcup
-//      reads the DB instead of hammering the API.
+// World Cup 2026 ("Free plans do not have access to this season").
 //
 // Server-only: uses the Supabase service-role key (writes bypass RLS).
-// Safe to run repeatedly; everything is upsert/idempotent. Returns 0s
-// gracefully when there are no finished fixtures yet (pre-tournament).
+// Safe to run repeatedly; everything is upsert/idempotent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { findLocalTeam } from "@/lib/resolver";
-import { aggregateWorldCupTeamStats } from "@/lib/teamFixtureStats";
+import {
+  computeFixtureTeamLines,
+  finalizeTeamLine,
+  mergeTeamLine,
+  ZERO_TEAM_LINE,
+  type TeamRawLine,
+} from "@/lib/teamFixtureStats";
 import {
   getS7Event,
   getS7Incidents,
   getS7Lineups,
+  getS7Statistics,
   getS7WorldCupEvents,
   type S7Incident,
   type S7LineupSide,
@@ -46,7 +48,8 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export type SyncSummary = {
   ok: boolean;
-  fixtures: number;
+  fixtures: number; // total fixtures in the cache
+  ingested: number; // new fixtures fetched + cached this run
   playersSet: number;
   playersUnmatched: number;
   teamsSet: number;
@@ -62,6 +65,20 @@ type Acc = PlayerStats & {
   _accuratePasses: number;
   _ratingSum: number;
   _ratingCount: number;
+};
+
+// What we persist per player in fixture_stats: identity + the raw numeric line
+// (every Acc field except the identity strings/id), JSON-serializable.
+type PlayerLine = Omit<Acc, "_teamCode" | "_name" | "_sofaId">;
+type StoredPlayer = {
+  sofaId: number;
+  teamCode: string;
+  name: string;
+  line: PlayerLine;
+};
+type FixtureData = {
+  players: StoredPlayer[];
+  teams: Record<string, TeamRawLine>;
 };
 
 function freshAcc(teamCode: string, name: string, sofaId: number): Acc {
@@ -191,6 +208,21 @@ function accumulateSide(
   }
 }
 
+/** Strip an Acc down to the JSON-serializable line stored per fixture. */
+function accToStored(acc: Acc): StoredPlayer {
+  const { _teamCode, _name, _sofaId, ...line } = acc;
+  return { sofaId: _sofaId, teamCode: _teamCode, name: _name, line };
+}
+
+/** Add a stored per-fixture line into a running per-player accumulator. */
+function mergeStoredPlayer(into: Acc, sp: StoredPlayer) {
+  const line = sp.line as unknown as Record<string, number>;
+  const target = into as unknown as Record<string, number>;
+  for (const k of Object.keys(line)) {
+    target[k] = (target[k] ?? 0) + (line[k] ?? 0);
+  }
+}
+
 /** Finalize derived fields and strip internal accumulators. */
 function finalize(acc: Acc): PlayerStats {
   const passAccuracy =
@@ -212,54 +244,126 @@ function finalize(acc: Acc): PlayerStats {
   return out;
 }
 
-export async function syncStats(season = 2026): Promise<SyncSummary> {
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    return mk(false, 0, 0, 0, 0, "Supabase env not configured");
+// ── Phase 1: ingest new finished fixtures into the cache ────────────────────
+
+/** Fetch one finished fixture and build its raw per-player + per-team lines. */
+async function buildFixtureData(eventId: number): Promise<{
+  data: FixtureData;
+  homeCode: string | null;
+  awayCode: string | null;
+} | null> {
+  const [lineups, incidents, stats, ev] = await Promise.all([
+    getS7Lineups(eventId),
+    getS7Incidents(eventId),
+    getS7Statistics(eventId),
+    getS7Event(eventId),
+  ]);
+  if (!ev || !lineups) return null;
+
+  const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
+  const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
+  const hs = n(ev.homeScore.current);
+  const as = n(ev.awayScore.current);
+  const homeResult = hs > as ? "W" : hs < as ? "L" : "D";
+  const awayResult = as > hs ? "W" : as < hs ? "L" : "D";
+
+  const byId = new Map<number, Acc>();
+  if (homeLocal) {
+    accumulateSide(byId, homeLocal.code, lineups.home, incidents, true, homeResult, as);
+  }
+  if (awayLocal) {
+    accumulateSide(byId, awayLocal.code, lineups.away, incidents, false, awayResult, hs);
   }
 
+  const players = [...byId.values()].map(accToStored);
+  const teams = computeFixtureTeamLines(stats, lineups, ev);
+
+  return {
+    data: { players, teams },
+    homeCode: homeLocal?.code ?? null,
+    awayCode: awayLocal?.code ?? null,
+  };
+}
+
+/**
+ * Ingest every finished fixture not yet in the cache. Returns how many new
+ * fixtures were stored this run and the total cached afterwards.
+ */
+async function ingestNewFixtures(
+  supabase: SupabaseClient,
+): Promise<{ ingested: number; cached: number }> {
   const events = await getS7WorldCupEvents();
   const finished = events.filter((e) => e.statusType === "finished");
-  if (finished.length === 0) {
-    await writeSyncState(0, 0, 0, 0, "no finished fixtures");
-    return mk(true, 0, 0, 0, 0, "no finished fixtures yet");
+
+  const { data: existing } = await supabase
+    .from("fixture_stats")
+    .select("fixture_id");
+  const cachedIds = new Set((existing ?? []).map((r) => Number(r.fixture_id)));
+
+  const toIngest = finished.filter((e) => !cachedIds.has(e.id));
+
+  let ingested = 0;
+  // Insert with ignoreDuplicates so concurrent triggers can't double-count.
+  for (const e of toIngest) {
+    const built = await buildFixtureData(e.id);
+    if (!built) continue;
+    const { data, error } = await supabase
+      .from("fixture_stats")
+      .upsert(
+        {
+          fixture_id: e.id,
+          home_code: built.homeCode,
+          away_code: built.awayCode,
+          data: built.data,
+        },
+        { onConflict: "fixture_id", ignoreDuplicates: true },
+      )
+      .select("fixture_id");
+    if (error) {
+      console.warn(`[statsSync] ingest ${e.id} failed: ${error.message}`);
+      continue;
+    }
+    if (data && data.length > 0) {
+      ingested++;
+      cachedIds.add(e.id);
+    }
   }
 
-  // ── 1. Pull each finished event's lineups + incidents + score, accumulate ──
+  return { ingested, cached: cachedIds.size };
+}
+
+// ── Phase 2: aggregate the cache into players.stats + team_stats ────────────
+
+type RosterRow = { id: number; team_code: string; name: string; photo: string | null };
+
+async function aggregateFromCache(
+  supabase: SupabaseClient,
+): Promise<{ playersSet: number; playersUnmatched: number; teamsSet: number }> {
+  // 1. Read every cached fixture (DB-only, no API).
+  const { data: rows } = await supabase
+    .from("fixture_stats")
+    .select("data");
+  const fixtures = (rows ?? []) as { data: FixtureData }[];
+
+  // 2. Merge per-player by Sofascore id, and per-team by code.
   const byId = new Map<number, Acc>();
-  const perEvent = await Promise.all(
-    finished.map(async (e) => {
-      const [lineups, incidents, ev] = await Promise.all([
-        getS7Lineups(e.id),
-        getS7Incidents(e.id),
-        getS7Event(e.id),
-      ]);
-      return { e, lineups, incidents, ev };
-    }),
-  );
-
-  for (const { lineups, incidents, ev } of perEvent) {
-    if (!ev || !lineups) continue;
-    const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
-    const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
-    const hs = n(ev.homeScore.current);
-    const as = n(ev.awayScore.current);
-    const homeResult = hs > as ? "W" : hs < as ? "L" : "D";
-    const awayResult = as > hs ? "W" : as < hs ? "L" : "D";
-    if (homeLocal) {
-      accumulateSide(byId, homeLocal.code, lineups.home, incidents, true, homeResult, as);
+  const teamAcc: Record<string, TeamRawLine> = {};
+  for (const { data } of fixtures) {
+    for (const sp of data.players ?? []) {
+      let acc = byId.get(sp.sofaId);
+      if (!acc) {
+        acc = freshAcc(sp.teamCode, sp.name, sp.sofaId);
+        byId.set(sp.sofaId, acc);
+      }
+      mergeStoredPlayer(acc, sp);
     }
-    if (awayLocal) {
-      accumulateSide(byId, awayLocal.code, lineups.away, incidents, false, awayResult, hs);
+    for (const [code, line] of Object.entries(data.teams ?? {})) {
+      teamAcc[code] ??= ZERO_TEAM_LINE();
+      mergeTeamLine(teamAcc[code], line);
     }
   }
 
-  // ── 2. Load DB roster and match (by Sofascore photo id, then name) ──
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { persistSession: false },
-  });
-  // Paginate: there are ~1,250 players (48 × 26) and PostgREST caps a single
-  // response at 1,000 rows, so a plain select silently truncates the roster.
-  type RosterRow = { id: number; team_code: string; name: string; photo: string | null };
+  // 3. Load DB roster (paginated — PostgREST caps a response at 1,000 rows).
   const roster: RosterRow[] = [];
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
@@ -268,16 +372,14 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
       .select("id, team_code, name, photo")
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
-    if (error) {
-      return mk(false, finished.length, 0, 0, 0, `roster read failed: ${error.message}`);
-    }
-    const rows = (data ?? []) as RosterRow[];
-    roster.push(...rows);
-    if (rows.length < PAGE) break;
+    if (error) throw new Error(`roster read failed: ${error.message}`);
+    const page = (data ?? []) as RosterRow[];
+    roster.push(...page);
+    if (page.length < PAGE) break;
   }
 
-  const byTeam = new Map<string, typeof roster>();
-  const bySofaId = new Map<number, (typeof roster)[number]>();
+  const byTeam = new Map<string, RosterRow[]>();
+  const bySofaId = new Map<number, RosterRow>();
   for (const r of roster) {
     const sid = sofaIdFromPhoto(r.photo);
     if (sid != null) bySofaId.set(sid, r);
@@ -286,17 +388,12 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
     byTeam.set(r.team_code, list);
   }
 
+  // 4. Match each player (by Sofascore photo id, then name-within-team).
   const updates: { id: number; stats: PlayerStats }[] = [];
   const unmatchedNames: string[] = [];
-  let unmatched = 0;
-
   for (const [sofaId, acc] of byId) {
-    // Only players who actually featured in a finished match get written;
-    // unused bench players stay at their default (zeroed) stats.
     if (acc.appearances === 0) continue;
-    // (a) exact match by the Sofascore id baked into the photo URL
     let row = bySofaId.get(sofaId) ?? null;
-    // (b) else match by name within the team
     if (!row) {
       const candidates = byTeam.get(acc._teamCode) ?? [];
       const target = strip(acc._name);
@@ -315,59 +412,87 @@ export async function syncStats(season = 2026): Promise<SyncSummary> {
         null;
     }
     if (!row) {
-      unmatched += 1;
       unmatchedNames.push(`${acc._teamCode}:${acc._name}`);
       continue;
     }
     updates.push({ id: row.id, stats: finalize(acc) });
   }
   if (unmatchedNames.length > 0) {
-    console.warn(`[statsSync] ${unmatched} unmatched players:`, unmatchedNames.join(", "));
+    console.warn(`[statsSync] ${unmatchedNames.length} unmatched players:`, unmatchedNames.join(", "));
   }
 
-  // ── 3. Write player stats (per-row UPDATE — players.id is an identity
-  //       column, so an upsert that carries id can't INSERT). Every id here
-  //       came from an existing roster row, so a plain update is correct. ──
+  // 5. Write player stats (per-row UPDATE — id is an identity column).
   let playersSet = 0;
   const CHUNK = 25;
   for (let i = 0; i < updates.length; i += CHUNK) {
     const slice = updates.slice(i, i + CHUNK);
     const results = await Promise.all(
-      slice.map((u) =>
-        supabase.from("players").update({ stats: u.stats }).eq("id", u.id),
-      ),
+      slice.map((u) => supabase.from("players").update({ stats: u.stats }).eq("id", u.id)),
     );
     const firstErr = results.find((r) => r.error)?.error;
-    if (firstErr) {
-      return mk(false, finished.length, playersSet, unmatched, 0, `player write failed: ${firstErr.message}`);
-    }
+    if (firstErr) throw new Error(`player write failed: ${firstErr.message}`);
     playersSet += slice.length;
   }
 
-  // ── 4. Team stats ──
-  const teamAgg = await aggregateWorldCupTeamStats(season);
-  const teamRows = Object.entries(teamAgg).map(([team_code, data]) => ({ team_code, data }));
+  // 6. Write team stats.
+  const teamRows = Object.entries(teamAcc).map(([team_code, raw]) => ({
+    team_code,
+    data: finalizeTeamLine(raw),
+  }));
   let teamsSet = 0;
   if (teamRows.length > 0) {
     const { error } = await supabase
       .from("team_stats")
       .upsert(teamRows, { onConflict: "team_code" });
-    if (error) {
-      return mk(false, finished.length, playersSet, unmatched, 0, `team write failed: ${error.message}`);
-    }
+    if (error) throw new Error(`team write failed: ${error.message}`);
     teamsSet = teamRows.length;
   }
 
-  await writeSyncState(finished.length, playersSet, unmatched, teamsSet, "ok");
-  return mk(true, finished.length, playersSet, unmatched, teamsSet, "ok");
+  return { playersSet, playersUnmatched: unmatchedNames.length, teamsSet };
+}
+
+/**
+ * Run the stats sync.
+ * @param opts.force  when true (default) always re-aggregate from the cache;
+ *   when false, only re-aggregate if this run ingested a new fixture (used by
+ *   the opportunistic on-match-open trigger to avoid needless DB writes).
+ */
+export async function syncStats(
+  season = 2026,
+  opts: { force?: boolean } = {},
+): Promise<SyncSummary> {
+  void season; // fixed by the sportapi7 tournament/season constants
+  const force = opts.force ?? true;
+
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    return mk(false, 0, 0, 0, 0, 0, "Supabase env not configured");
+  }
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+    auth: { persistSession: false },
+  });
+
+  const { ingested, cached } = await ingestNewFixtures(supabase);
+
+  if (cached === 0) {
+    await writeSyncState(supabase, 0, 0, 0, 0, "no finished fixtures");
+    return mk(true, 0, ingested, 0, 0, 0, "no finished fixtures yet");
+  }
+
+  // Nothing new and not forced → leave the existing aggregate untouched.
+  if (ingested === 0 && !force) {
+    return mk(true, cached, 0, 0, 0, 0, "no new fixtures");
+  }
+
+  const { playersSet, playersUnmatched, teamsSet } = await aggregateFromCache(supabase);
+  await writeSyncState(supabase, cached, playersSet, playersUnmatched, teamsSet, "ok");
+  return mk(true, cached, ingested, playersSet, playersUnmatched, teamsSet, "ok");
 }
 
 async function writeSyncState(
+  supabase: SupabaseClient,
   fixtures: number, players_set: number, players_unmatched: number,
   teams_set: number, note: string,
 ) {
-  if (!SUPABASE_URL || !SERVICE_KEY) return;
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   await supabase.from("sync_state").upsert(
     { id: 1, last_run_at: new Date().toISOString(), fixtures, players_set, players_unmatched, teams_set, note },
     { onConflict: "id" },
@@ -375,8 +500,8 @@ async function writeSyncState(
 }
 
 function mk(
-  ok: boolean, fixtures: number, playersSet: number,
+  ok: boolean, fixtures: number, ingested: number, playersSet: number,
   playersUnmatched: number, teamsSet: number, note: string,
 ): SyncSummary {
-  return { ok, fixtures, playersSet, playersUnmatched, teamsSet, note };
+  return { ok, fixtures, ingested, playersSet, playersUnmatched, teamsSet, note };
 }

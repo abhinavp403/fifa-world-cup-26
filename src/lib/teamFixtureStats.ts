@@ -62,7 +62,12 @@ function teamStat(
   return 0;
 }
 
-const ZERO_AGG = (): TeamFixtureAggregate & { possessionSum: number } => ({
+// Raw per-team accumulator: the aggregate fields plus the un-averaged
+// possessionSum, so partial sums from individual fixtures can be merged before
+// possession is finalized.
+export type TeamRawLine = TeamFixtureAggregate & { possessionSum: number };
+
+export const ZERO_TEAM_LINE = (): TeamRawLine => ({
   possession: 0, corners: 0, shots: 0, shotsOnTarget: 0,
   fouls: 0, offsides: 0, yellowCards: 0, redCards: 0,
   saves: 0, passes: 0, passesAccurate: 0,
@@ -71,7 +76,8 @@ const ZERO_AGG = (): TeamFixtureAggregate & { possessionSum: number } => ({
   possessionSum: 0,
 });
 
-type AccMap = Record<string, ReturnType<typeof ZERO_AGG>>;
+const ZERO_AGG = ZERO_TEAM_LINE;
+type AccMap = Record<string, TeamRawLine>;
 
 function ensure(acc: AccMap, code: string) {
   acc[code] ??= ZERO_AGG();
@@ -107,6 +113,69 @@ function accumulateSide(
   a.matches++;
 }
 
+// ── Per-fixture helpers (used by the incremental stats cache) ───────────────
+
+type S7Ev = NonNullable<Awaited<ReturnType<typeof getS7Event>>>;
+
+/**
+ * Raw team contributions from a single finished fixture, keyed by local team
+ * code. Stored verbatim in fixture_stats so the tournament aggregate can be
+ * rebuilt by summing these without re-hitting the API.
+ */
+export function computeFixtureTeamLines(
+  stats: S7StatPeriod[] | null,
+  lineups: { home?: S7LineupSide; away?: S7LineupSide } | null,
+  ev: S7Ev,
+): Record<string, TeamRawLine> {
+  const out: Record<string, TeamRawLine> = {};
+  const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
+  const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
+  if (homeLocal) {
+    const line = ZERO_TEAM_LINE();
+    accumulateSide(line, stats, lineups?.home, "home");
+    out[homeLocal.code] = line;
+  }
+  if (awayLocal) {
+    const line = ZERO_TEAM_LINE();
+    accumulateSide(line, stats, lineups?.away, "away");
+    out[awayLocal.code] = line;
+  }
+  return out;
+}
+
+/** Sum one raw team line into a running total (in place). */
+export function mergeTeamLine(into: TeamRawLine, add: Partial<TeamRawLine>) {
+  for (const k of Object.keys(into) as (keyof TeamRawLine)[]) {
+    into[k] += add[k] ?? 0;
+  }
+}
+
+/** Finalize a merged raw line: average possession, drop bookkeeping. */
+export function finalizeTeamLine(v: TeamRawLine): TeamFixtureAggregate {
+  return {
+    possession: v.matches > 0
+      ? Math.round((v.possessionSum / v.matches) * 10) / 10
+      : 0,
+    corners:        v.corners,
+    shots:          v.shots,
+    shotsOnTarget:  v.shotsOnTarget,
+    fouls:          v.fouls,
+    offsides:       v.offsides,
+    yellowCards:    v.yellowCards,
+    redCards:       v.redCards,
+    saves:          v.saves,
+    passes:         v.passes,
+    passesAccurate: v.passesAccurate,
+    keyPasses:      v.keyPasses,
+    tackles:        v.tackles,
+    interceptions:  v.interceptions,
+    matches:        v.matches,
+  };
+}
+
+// Live (non-cached) aggregation — re-fetches every finished fixture. Used by
+// /api/worldcup as a fallback when the DB team_stats table is empty. The stats
+// sync no longer calls this; it aggregates from the fixture_stats cache instead.
 export async function aggregateWorldCupTeamStats(
   _season: number,
 ): Promise<TeamFixtureAggregateMap> {
@@ -129,38 +198,15 @@ export async function aggregateWorldCupTeamStats(
   const acc: AccMap = {};
   for (const { stats, lineups, ev } of perEvent) {
     if (!ev) continue;
-    const homeLocal = findLocalTeam({ id: ev.homeTeam.id, name: ev.homeTeam.name });
-    const awayLocal = findLocalTeam({ id: ev.awayTeam.id, name: ev.awayTeam.name });
-    if (homeLocal) {
-      accumulateSide(ensure(acc, homeLocal.code), stats, lineups?.home, "home");
-    }
-    if (awayLocal) {
-      accumulateSide(ensure(acc, awayLocal.code), stats, lineups?.away, "away");
+    const lines = computeFixtureTeamLines(stats, lineups, ev);
+    for (const [code, line] of Object.entries(lines)) {
+      mergeTeamLine(ensure(acc, code), line);
     }
   }
 
-  // Finalize: average possession, drop bookkeeping.
   const out: TeamFixtureAggregateMap = {};
   for (const [code, v] of Object.entries(acc)) {
-    out[code] = {
-      possession: v.matches > 0
-        ? Math.round((v.possessionSum / v.matches) * 10) / 10
-        : 0,
-      corners:        v.corners,
-      shots:          v.shots,
-      shotsOnTarget:  v.shotsOnTarget,
-      fouls:          v.fouls,
-      offsides:       v.offsides,
-      yellowCards:    v.yellowCards,
-      redCards:       v.redCards,
-      saves:          v.saves,
-      passes:         v.passes,
-      passesAccurate: v.passesAccurate,
-      keyPasses:      v.keyPasses,
-      tackles:        v.tackles,
-      interceptions:  v.interceptions,
-      matches:        v.matches,
-    };
+    out[code] = finalizeTeamLine(v);
   }
   return out;
 }

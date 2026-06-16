@@ -13,25 +13,47 @@
 const HOST = "sportapi7.p.rapidapi.com";
 const BASE = `https://${HOST}/api/v1`;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// The free RapidAPI tier rate-limits bursts (the stats sync fans out ~24
+// requests at once), so a single 429 would silently drop a whole fixture.
+// Retry 429s with exponential backoff, honoring Retry-After when present.
+const MAX_RETRIES = 4;
+
 async function s7<T>(path: string): Promise<T | null> {
   const key = process.env.RAPID_API_KEY;
   if (!key) {
     console.warn("[sportapi7] RAPID_API_KEY not set");
     return null;
   }
-  try {
-    const res = await fetch(`${BASE}/${path}`, {
-      headers: { "x-rapidapi-key": key, "x-rapidapi-host": HOST },
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) {
-      console.warn(`[sportapi7] ${path} → ${res.status} ${res.statusText}`);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${BASE}/${path}`, {
+        headers: { "x-rapidapi-key": key, "x-rapidapi-host": HOST },
+        next: { revalidate: 300 },
+      });
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = Number(res.headers.get("retry-after"));
+        const delay = Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s
+        console.warn(`[sportapi7] ${path} → 429, retrying in ${delay}ms (attempt ${attempt + 1})`);
+        await sleep(delay);
+        continue;
+      }
+      if (!res.ok) {
+        console.warn(`[sportapi7] ${path} → ${res.status} ${res.statusText}`);
+        return null;
+      }
+      return (await res.json()) as T;
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        await sleep(1000 * 2 ** attempt);
+        continue;
+      }
+      console.warn(`[sportapi7] ${path} failed:`, err);
       return null;
     }
-    return (await res.json()) as T;
-  } catch (err) {
-    console.warn(`[sportapi7] ${path} failed:`, err);
-    return null;
   }
 }
 

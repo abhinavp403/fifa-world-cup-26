@@ -62,6 +62,23 @@ create policy "public read match_motm" on public.match_motm for select using (tr
 drop trigger if exists match_motm_touch on public.match_motm;
 create trigger match_motm_touch before update on public.match_motm for each row execute function public.touch_updated_at();
 
+-- Per-fixture stats cache: one row per finished Sofascore fixture, holding its
+-- raw (un-finalized) per-player and per-team contributions. The stats sync
+-- INGESTS each finished fixture exactly once (the expensive API calls), then
+-- AGGREGATES the whole tournament by summing these cached rows in the DB
+-- (cheap, no API calls). `data` shape: { players: [...], teams: { CODE: {...} } }.
+-- Written only with the service_role key.
+create table if not exists public.fixture_stats (
+  fixture_id  bigint primary key,            -- Sofascore event id
+  home_code   text,
+  away_code   text,
+  data        jsonb not null,
+  synced_at   timestamptz not null default now()
+);
+
+alter table public.fixture_stats enable row level security;
+-- No public read policy: only the sync (service_role key) touches this table.
+
 -- keep updated_at fresh on any write
 create or replace function public.touch_updated_at() returns trigger as $$
 begin
