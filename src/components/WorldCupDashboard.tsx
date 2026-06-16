@@ -802,13 +802,6 @@ function GroupCard({
   );
   const topTeam = [...group.teams].sort((a, b) => a.fifaRank - b.fifaRank)[0];
 
-  const difficulty =
-    avgRank <= 20
-      ? { label: "Group of Death", color: "bg-rose-500/20 text-rose-300 border-rose-500/40" }
-      : avgRank <= 35
-      ? { label: "Competitive", color: "bg-amber-500/15 text-amber-300 border-amber-500/30" }
-      : { label: "Balanced", color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -838,11 +831,6 @@ function GroupCard({
               </p>
             </div>
           </div>
-          <span
-            className={`text-[10px] font-bold tracking-wider px-2 py-1 rounded border ${difficulty.color}`}
-          >
-            {difficulty.label.toUpperCase()}
-          </span>
         </div>
 
         <StandingsTable
@@ -1047,18 +1035,27 @@ function GroupsSection({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredGroups.map((g, i) => (
-              <GroupCard
-                key={g.letter}
-                group={g}
-                i={i}
-                rows={rowsByLetter.get(g.letter)}
-                matches={matchesByLetter.get(g.letter)}
-                onMatchClick={onMatchClick}
-                onTeamClick={onTeamClick}
-                forceMatchesOpen={allMatchesOpen}
-              />
-            ))}
+            {filteredGroups.map((g, i) => {
+              // Narrow live standings to the teams left after search/conf filter
+              // so a filtered group shows only the matching team(s), not all four.
+              const allowed = new Set(g.teams.map((t) => t.code));
+              const liveRows = rowsByLetter.get(g.letter);
+              const shownRows = liveRows
+                ? liveRows.filter((r) => allowed.has(r.team.code))
+                : liveRows;
+              return (
+                <GroupCard
+                  key={g.letter}
+                  group={g}
+                  i={i}
+                  rows={shownRows}
+                  matches={matchesByLetter.get(g.letter)}
+                  onMatchClick={onMatchClick}
+                  onTeamClick={onTeamClick}
+                  forceMatchesOpen={allMatchesOpen}
+                />
+              );
+            })}
           </div>
         )}
       </div>
