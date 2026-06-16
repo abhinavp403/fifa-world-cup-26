@@ -16,6 +16,7 @@ import {
   Activity,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 
@@ -761,6 +762,7 @@ function GroupCard({
   matches,
   onMatchClick,
   onTeamClick,
+  forceMatchesOpen = false,
 }: {
   group: Group;
   i: number;
@@ -768,8 +770,13 @@ function GroupCard({
   matches?: GroupMatch[] | null;
   onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
   onTeamClick?: (code: string) => void;
+  forceMatchesOpen?: boolean;
 }) {
   const [matchesOpen, setMatchesOpen] = useState(false);
+
+  useEffect(() => {
+    setMatchesOpen(forceMatchesOpen);
+  }, [forceMatchesOpen]);
 
   const avgRank = Math.round(
     group.teams.reduce((a, t) => a + t.fifaRank, 0) / group.teams.length,
@@ -889,6 +896,7 @@ function GroupsSection({
 }) {
   const [search, setSearch] = useState("");
   const [confFilter, setConfFilter] = useState<Confederation | "ALL">("ALL");
+  const [allMatchesOpen, setAllMatchesOpen] = useState(false);
 
   // Map letter → live rows / matches, if any
   const rowsByLetter = useMemo(() => {
@@ -957,6 +965,13 @@ function GroupsSection({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setAllMatchesOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold border border-[var(--border-card)] text-gray-400 hover:text-white hover:border-[var(--accent-500)]/40 transition-all"
+            >
+              {allMatchesOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {allMatchesOpen ? "Collapse all matches" : "Expand all matches"}
+            </button>
             <div className="relative">
               <input
                 value={search}
@@ -1022,6 +1037,7 @@ function GroupsSection({
                 matches={matchesByLetter.get(g.letter)}
                 onMatchClick={onMatchClick}
                 onTeamClick={onTeamClick}
+                forceMatchesOpen={allMatchesOpen}
               />
             ))}
           </div>
