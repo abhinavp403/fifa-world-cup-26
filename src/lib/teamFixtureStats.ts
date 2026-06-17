@@ -40,6 +40,19 @@ export type TeamFixtureAggregate = {
   keyPasses:      number;
   tackles:        number;
   interceptions:  number;
+  // Additional team-level totals from /event/{id}/statistics
+  xg:             number; // expected goals (sum across matches)
+  clearances:     number;
+  crosses:        number;
+  freeKicks:      number;
+  shotsInsideBox: number;
+  shotsOutsideBox:number;
+  touchesInBox:   number; // touches in the opposition penalty area
+  // Per-match percentages — averaged across matches (Sofascore gives only the
+  // per-match %, not the underlying won/total counts).
+  tacklesWonPct:  number; // 0–100
+  duelsPct:       number; // 0–100
+  dribblesPct:    number; // 0–100
   // Bookkeeping
   matches:        number;
 };
@@ -62,18 +75,26 @@ function teamStat(
   return 0;
 }
 
-// Raw per-team accumulator: the aggregate fields plus the un-averaged
-// possessionSum, so partial sums from individual fixtures can be merged before
-// possession is finalized.
-export type TeamRawLine = TeamFixtureAggregate & { possessionSum: number };
+// Raw per-team accumulator: the aggregate fields plus the un-averaged sums
+// (possession + the percentage stats), so partial sums from individual fixtures
+// can be merged before the averages are finalized.
+export type TeamRawLine = TeamFixtureAggregate & {
+  possessionSum:    number;
+  tacklesWonPctSum: number;
+  duelsPctSum:      number;
+  dribblesPctSum:   number;
+};
 
 export const ZERO_TEAM_LINE = (): TeamRawLine => ({
   possession: 0, corners: 0, shots: 0, shotsOnTarget: 0,
   fouls: 0, offsides: 0, yellowCards: 0, redCards: 0,
   saves: 0, passes: 0, passesAccurate: 0,
   keyPasses: 0, tackles: 0, interceptions: 0,
+  xg: 0, clearances: 0, crosses: 0, freeKicks: 0,
+  shotsInsideBox: 0, shotsOutsideBox: 0, touchesInBox: 0,
+  tacklesWonPct: 0, duelsPct: 0, dribblesPct: 0,
   matches: 0,
-  possessionSum: 0,
+  possessionSum: 0, tacklesWonPctSum: 0, duelsPctSum: 0, dribblesPctSum: 0,
 });
 
 const ZERO_AGG = ZERO_TEAM_LINE;
@@ -102,6 +123,16 @@ function accumulateSide(
   a.passes         += teamStat(stats, "passes", side);
   a.passesAccurate += teamStat(stats, "accuratePasses", side);
   a.possessionSum  += teamStat(stats, "ballPossession", side);
+  a.xg             += teamStat(stats, "expectedGoals", side);
+  a.clearances     += teamStat(stats, "totalClearance", side);
+  a.crosses        += teamStat(stats, "accurateCross", side);
+  a.freeKicks      += teamStat(stats, "freeKicks", side);
+  a.shotsInsideBox += teamStat(stats, "totalShotsInsideBox", side);
+  a.shotsOutsideBox+= teamStat(stats, "totalShotsOutsideBox", side);
+  a.touchesInBox   += teamStat(stats, "touchesInOppBox", side);
+  a.tacklesWonPctSum += teamStat(stats, "wonTacklePercent", side);
+  a.duelsPctSum      += teamStat(stats, "duelWonPercent", side);
+  a.dribblesPctSum   += teamStat(stats, "dribblesPercentage", side);
 
   for (const lp of lineup?.players ?? []) {
     const s = lp.statistics ?? {};
@@ -150,8 +181,10 @@ export function mergeTeamLine(into: TeamRawLine, add: Partial<TeamRawLine>) {
   }
 }
 
-/** Finalize a merged raw line: average possession, drop bookkeeping. */
+/** Finalize a merged raw line: average possession/percentages, drop bookkeeping. */
 export function finalizeTeamLine(v: TeamRawLine): TeamFixtureAggregate {
+  const avg = (sum: number) =>
+    v.matches > 0 ? Math.round(sum / v.matches) : 0;
   return {
     possession: v.matches > 0
       ? Math.round((v.possessionSum / v.matches) * 10) / 10
@@ -169,6 +202,16 @@ export function finalizeTeamLine(v: TeamRawLine): TeamFixtureAggregate {
     keyPasses:      v.keyPasses,
     tackles:        v.tackles,
     interceptions:  v.interceptions,
+    xg:             Math.round(v.xg * 10) / 10,
+    clearances:     v.clearances,
+    crosses:        v.crosses,
+    freeKicks:      v.freeKicks,
+    shotsInsideBox: v.shotsInsideBox,
+    shotsOutsideBox:v.shotsOutsideBox,
+    touchesInBox:   v.touchesInBox,
+    tacklesWonPct:  avg(v.tacklesWonPctSum),
+    duelsPct:       avg(v.duelsPctSum),
+    dribblesPct:    avg(v.dribblesPctSum),
     matches:        v.matches,
   };
 }

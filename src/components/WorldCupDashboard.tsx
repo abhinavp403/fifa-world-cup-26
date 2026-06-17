@@ -39,6 +39,7 @@ import type { Squad } from "@/lib/squads";
 import { SquadsProvider, useSquads } from "@/lib/squadsContext";
 import type { Match, Round } from "@/lib/bracket";
 import type { GroupMatch, GroupRow, ResolvedGroup } from "@/lib/resolver";
+import type { TeamFixtureAggregate } from "@/lib/teamFixtureStats";
 import { normalizeText } from "@/lib/text";
 import FlagImage from "@/components/Flag";
 
@@ -1267,13 +1268,7 @@ type WorldCupPayload = {
   bracket: Round[];
   thirdPlace: Match;
   champion: Team | null;
-  teamFixtureStats: Record<string, {
-    possession: number; corners: number; matches: number;
-    shots: number; shotsOnTarget: number; fouls: number; offsides: number;
-    yellowCards: number; redCards: number; saves: number;
-    passes: number; passesAccurate: number;
-    keyPasses: number; tackles: number; interceptions: number;
-  }>;
+  teamFixtureStats: Record<string, TeamFixtureAggregate>;
 };
 
 // Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.

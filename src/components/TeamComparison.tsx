@@ -8,6 +8,7 @@ import type { Squad } from "@/lib/squads";
 import { useSquads } from "@/lib/squadsContext";
 import type { Round, Match } from "@/lib/bracket";
 import type { ResolvedGroup } from "@/lib/resolver";
+import type { TeamFixtureAggregate } from "@/lib/teamFixtureStats";
 import TeamStatsModal from "@/components/TeamStatsModal";
 import Flag from "@/components/Flag";
 import { normalizeText } from "@/lib/text";
@@ -20,13 +21,7 @@ export type TeamComparisonPayload = {
   groups:    ResolvedGroup[];
   bracket:   Round[];
   champion:  Team | null;
-  teamFixtureStats?: Record<string, {
-    possession: number; corners: number; matches: number;
-    shots: number; shotsOnTarget: number; fouls: number; offsides: number;
-    yellowCards: number; redCards: number; saves: number;
-    passes: number; passesAccurate: number;
-    keyPasses: number; tackles: number; interceptions: number;
-  }>;
+  teamFixtureStats?: Record<string, TeamFixtureAggregate>;
 } | null;
 
 export type TeamStats = {
@@ -59,19 +54,20 @@ export type TeamStats = {
   // matches (api-football); 0 until that pipeline exists.
   possession:    number; // average possession % (0–100)
   corners:       number; // total corners taken
-  // Team-level fixture stats — same "not yet wired up" status as
-  // possession/corners above; require a fixture-statistics aggregation
-  // pipeline (api-football or sportapi7) before these populate.
-  hitWoodwork:    number;
+  // Team-level fixture stats from the sportapi7 statistics endpoint.
+  xg:              number; // expected goals (sum)
+  clearances:      number;
+  crosses:         number;
+  freeKicks:       number;
   shotsInsideBox:  number;
   shotsOutsideBox: number;
+  touchesInBox:    number; // touches in the opposition box
+  tacklesWonPct:   number; // 0–100 (averaged across matches)
+  duelsPct:        number; // 0–100 (averaged)
+  dribblesPct:     number; // 0–100 (averaged)
+  // Rolled up from per-player stats (the sync collects these per player).
   longBalls:       number;
-  throwIns:        number;
   ballRecoveries:  number;
-  dispossessed:    number;
-  tacklesWonPct:   number; // 0–100
-  duelsPct:        number; // 0–100
-  dribblesPct:     number; // 0–100
 };
 
 const ALL_TEAMS = GROUPS.flatMap((g) => g.teams);
@@ -126,9 +122,10 @@ export function computeTeamStats(
     tackles: 0, interceptions: 0, saves: 0, dribbles: 0,
     passes: 0, passesAccurate: 0,
     possession: 0, corners: 0,
-    hitWoodwork: 0, shotsInsideBox: 0, shotsOutsideBox: 0,
-    longBalls: 0, throwIns: 0, ballRecoveries: 0, dispossessed: 0,
+    xg: 0, clearances: 0, crosses: 0, freeKicks: 0,
+    shotsInsideBox: 0, shotsOutsideBox: 0, touchesInBox: 0,
     tacklesWonPct: 0, duelsPct: 0, dribblesPct: 0,
+    longBalls: 0, ballRecoveries: 0,
   };
 
   if (payload) {
@@ -191,6 +188,8 @@ export function computeTeamStats(
       stats.dribbles       += s.dribbles;
       stats.saves          += s.saves;
       stats.passes         += s.passes;
+      stats.longBalls      += s.longBalls;
+      stats.ballRecoveries += s.ballRecoveries;
       // passAccuracy stored per-player as 0–100; derive accurate-pass
       // count to allow proper team-level weighted accuracy.
       stats.passesAccurate += Math.round((s.passes * s.passAccuracy) / 100);
@@ -221,6 +220,16 @@ export function computeTeamStats(
     stats.keyPasses      = fxAgg.keyPasses;
     stats.tackles        = fxAgg.tackles;
     stats.interceptions  = fxAgg.interceptions;
+    stats.xg             = fxAgg.xg;
+    stats.clearances     = fxAgg.clearances;
+    stats.crosses        = fxAgg.crosses;
+    stats.freeKicks      = fxAgg.freeKicks;
+    stats.shotsInsideBox = fxAgg.shotsInsideBox;
+    stats.shotsOutsideBox = fxAgg.shotsOutsideBox;
+    stats.touchesInBox   = fxAgg.touchesInBox;
+    stats.tacklesWonPct  = fxAgg.tacklesWonPct;
+    stats.duelsPct       = fxAgg.duelsPct;
+    stats.dribblesPct    = fxAgg.dribblesPct;
   }
 
   return stats;

@@ -361,8 +361,7 @@ function FullStatsTable({
   const passAcc = (t: TeamStats) =>
     t.passes > 0 ? `${Math.round((t.passesAccurate / t.passes) * 100)}%` : "—";
 
-  // Fixture-aggregate fields (not yet wired to a per-match aggregation
-  // pipeline — same "0 = no data" convention as Avg possession/Total corners).
+  // "0 = no data" convention, same as Avg possession / Total corners.
   const dash    = (v: number) => (v > 0 ? v : "—");
   const dashPct = (v: number) => (v > 0 ? `${Math.round(v)}%` : "—");
 
@@ -387,9 +386,10 @@ function FullStatsTable({
         ["Shots on target",  a.shotsOnTarget, b.shotsOnTarget],
         ["Shot accuracy",    `${pct(a.shotsOnTarget, a.shots)}%`, `${pct(b.shotsOnTarget, b.shots)}%`],
         ["Conversion rate",  `${pct(a.goalsScored, a.shots)}%`,   `${pct(b.goalsScored, b.shots)}%`],
+        ["Expected goals",   dash(a.xg),             dash(b.xg)],
         ["Shots inside box",  dash(a.shotsInsideBox),  dash(b.shotsInsideBox)],
         ["Shots outside box", dash(a.shotsOutsideBox), dash(b.shotsOutsideBox)],
-        ["Hit woodwork",      dash(a.hitWoodwork),     dash(b.hitWoodwork)],
+        ["Touches in opp box", dash(a.touchesInBox),   dash(b.touchesInBox)],
       ],
     },
     {
@@ -403,8 +403,8 @@ function FullStatsTable({
         ["Pass accuracy",    passAcc(a),      passAcc(b)],
         ["Key passes",       a.keyPasses,     b.keyPasses],
         ["Long balls",       dash(a.longBalls), dash(b.longBalls)],
-        ["Throw-ins",        dash(a.throwIns),  dash(b.throwIns)],
-        ["Dispossessed",     dash(a.dispossessed),   dash(b.dispossessed)],
+        ["Crosses",          dash(a.crosses),   dash(b.crosses)],
+        ["Free kicks",       dash(a.freeKicks), dash(b.freeKicks)],
         ["Dribbles %",       dashPct(a.dribblesPct), dashPct(b.dribblesPct)],
       ],
     },
@@ -416,6 +416,7 @@ function FullStatsTable({
         ["Tackles",          a.tackles,       b.tackles],
         ["Tackles won %",    dashPct(a.tacklesWonPct), dashPct(b.tacklesWonPct)],
         ["Interceptions",    a.interceptions, b.interceptions],
+        ["Clearances",       dash(a.clearances), dash(b.clearances)],
         ["Recoveries",       dash(a.ballRecoveries), dash(b.ballRecoveries)],
         ["Duels won %",      dashPct(a.duelsPct),    dashPct(b.duelsPct)],
         ["Fouls committed",  a.fouls,         b.fouls],
