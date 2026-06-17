@@ -149,11 +149,9 @@ function drawMirroredBars(
     ctx.textAlign = "center";
     ctx.fillText(s.label, cx, y + 18);
 
-    // bar A (grows left)
+    // bar A (grows left) — always the team's own color for consistency
     const wA = Math.round((s.va / maxV) * barMax * 0.42);
-    const winsA = s.inv ? s.va <= s.vb : s.va >= s.vb;
-    ctx.fillStyle = winsA ? colorA : "#1a3a60";
-    if (s.inv && !winsA) ctx.fillStyle = "#9a3030";
+    ctx.fillStyle = colorA;
     ctx.beginPath();
     ctx.roundRect(cx - wA - 78, y + 4, wA, 22, 4);
     ctx.fill();
@@ -162,11 +160,9 @@ function drawMirroredBars(
     ctx.textAlign = "right";
     ctx.fillText(`${s.va}${s.unit ?? ""}`, cx - 82, y + 19);
 
-    // bar B (grows right)
+    // bar B (grows right) — always the team's own color for consistency
     const wB = Math.round((s.vb / maxV) * barMax * 0.42);
-    const winsB = s.inv ? s.vb <= s.va : s.vb >= s.va;
-    ctx.fillStyle = winsB ? colorB : "#604800";
-    if (s.inv && !winsB) ctx.fillStyle = "#9a3030";
+    ctx.fillStyle = colorB;
     ctx.beginPath();
     ctx.roundRect(cx + 78, y + 4, wB, 22, 4);
     ctx.fill();
