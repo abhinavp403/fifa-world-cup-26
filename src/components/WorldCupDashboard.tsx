@@ -738,8 +738,10 @@ function GroupMatchRow({
       }
       className="w-full text-left group flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[var(--border-card)]/60 transition-colors cursor-pointer"
     >
-      <div className="flex items-center gap-1 flex-1 min-w-0">
-        <span className="text-base leading-none">{match.homeFlag}</span>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        {match.homeCode
+          ? <FlagImage code={match.homeCode} size="sm" />
+          : <span className="text-base leading-none">{match.homeFlag}</span>}
         <span className="text-white text-[12px] font-semibold truncate">
           {match.homeCode}
         </span>
@@ -763,11 +765,13 @@ function GroupMatchRow({
         )}
       </div>
 
-      <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
+      <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
         <span className="text-white text-[12px] font-semibold truncate">
           {match.awayCode}
         </span>
-        <span className="text-base leading-none">{match.awayFlag}</span>
+        {match.awayCode
+          ? <FlagImage code={match.awayCode} size="sm" />
+          : <span className="text-base leading-none">{match.awayFlag}</span>}
       </div>
 
       <ChevronRight className="w-3 h-3 text-gray-600 group-hover:text-[var(--accent-400)] flex-shrink-0 transition-colors" />
