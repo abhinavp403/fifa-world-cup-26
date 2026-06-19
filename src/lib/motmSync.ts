@@ -46,10 +46,15 @@ async function fetchMotmRows(): Promise<MotmRow[]> {
   const section = (await secRes.json()) as { richtext?: RichtextNode };
   const text = section.richtext ? extractText(section.richtext) : "";
 
-  // Parse "Team1 X-Y Team2 - Player Name (Team)" entries.
-  // The unicode range covers accented chars like Türkiye, Côte d'Ivoire, etc.
-  const pattern =
-    /([A-Za-zÀ-ÖØ-öø-ÿ ]+\d[-–]\d[A-Za-zÀ-ÖØ-öø-ÿ ]+)\s[-–]\s([^(]+)\(([^)]+)\)/g;
+  // Parse "Team1 X-Y Team2 - Player Name (Team)" entries. Played matches usually
+  // show a score, but FIFA occasionally lists one as "Team1 v Team2" with no
+  // score. The team-name class covers accents (Türkiye) and apostrophes
+  // (Côte d'Ivoire — both straight ' and curly ’).
+  const T = "A-Za-zÀ-ÖØ-öø-ÿ '’";
+  const pattern = new RegExp(
+    `([${T}]+(?:\\d[-–]\\d|\\sv\\s)[${T}]+)\\s[-–]\\s([^(]+)\\(([^)]+)\\)`,
+    "g",
+  );
 
   const rows: MotmRow[] = [];
   let m: RegExpExecArray | null;
@@ -57,7 +62,11 @@ async function fetchMotmRows(): Promise<MotmRow[]> {
     const scoreStr = m[1].trim();
     const playerName = m[2].trim();
     const playerTeam = m[3].trim();
-    const sides = scoreStr.match(/^(.+?)\s+\d[-–]\d\s+(.+)$/);
+    // The no-score "Team v Team" form can otherwise span an upcoming fixture's
+    // "Group X - Stadium" listing into a later entry's "(Team)"; a real player
+    // name has none of these, so reject those false matches.
+    if (/stadium|group|\d/i.test(playerName)) continue;
+    const sides = scoreStr.match(/^(.+?)(?:\s+\d[-–]\d\s+|\sv\s)(.+)$/);
     if (!sides) continue;
     rows.push({
       home_team: sides[1].trim(),
