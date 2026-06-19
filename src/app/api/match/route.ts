@@ -25,6 +25,7 @@ import {
 } from "@/lib/apiFootball";
 import {
   getS7Event,
+  getS7Graph,
   getS7Incidents,
   getS7Lineups,
   getS7Statistics,
@@ -144,6 +145,9 @@ export type MatchPayload = {
   away: MatchSide;
   events: MatchEvent[];
   manOfTheMatch: ManOfTheMatch | null;
+  // Per-minute momentum ("attack pressure"): positive = home, negative = away.
+  // null when Sofascore has no graph for the fixture.
+  momentum: { minute: number; value: number }[] | null;
   updatedAt: string;
 };
 
@@ -574,10 +578,11 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
   const ev = await getS7Event(id);
   if (!ev) return null;
 
-  const [stats, lineups, incidents] = await Promise.all([
+  const [stats, lineups, incidents, momentum] = await Promise.all([
     getS7Statistics(id),
     getS7Lineups(id),
     getS7Incidents(id),
+    getS7Graph(id),
   ]);
 
   const home = buildS7Side(ev, "home", stats, lineups?.home, incidents);
@@ -634,6 +639,7 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
     events,
     // Only the FIFA scraper supplies MOTM; no fallback — show nothing until it does.
     manOfTheMatch: await fifaMotm(ev.homeTeam.name, ev.awayTeam.name),
+    momentum: momentum && momentum.length > 0 ? momentum : null,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -720,6 +726,7 @@ export async function GET(request: Request) {
     away,
     events: matchEvents,
     manOfTheMatch: null, // not exposed by api-football
+    momentum: null, // not exposed by api-football
     updatedAt: new Date().toISOString(),
   };
 

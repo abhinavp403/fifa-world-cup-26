@@ -945,6 +945,97 @@ function KeyMomentsTimeline({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Match momentum ("attack pressure") — smooth filled waves. Positive values
+// bulge up in the home colour; negative dip down in the away colour.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Catmull-Rom → cubic-bezier smoothing for a list of [x,y] points.
+function smoothLine(pts: [number, number][]): string {
+  if (pts.length === 0) return "";
+  if (pts.length < 3) return "M" + pts.map((p) => p.join(",")).join(" L");
+  let d = `M ${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+
+function MatchMomentum({
+  points,
+  homeColor,
+  awayColor,
+  homeName,
+  awayName,
+  periodTime,
+}: {
+  points: { minute: number; value: number }[];
+  homeColor: string;
+  awayColor: string;
+  homeName: string;
+  awayName: string;
+  periodTime: number;
+}) {
+  const W = 1000;
+  const H = 200;
+  const cy = H / 2;
+  const pad = 6;
+  const maxMin = points[points.length - 1]?.minute || 90;
+  const maxAbs = Math.max(10, ...points.map((p) => Math.abs(p.value)));
+  const x = (m: number) => (m / maxMin) * W;
+  const y = (v: number) => cy - (v / maxAbs) * (cy - pad);
+
+  const xy = points.map((p) => [x(p.minute), y(p.value)] as [number, number]);
+  const line = smoothLine(xy);
+  const area = `${line} L ${xy[xy.length - 1][0]},${cy} L ${xy[0][0]},${cy} Z`;
+  const htX = x(periodTime);
+  const uid = `mom-${Math.round(maxMin)}-${Math.round(maxAbs)}`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white text-xl font-bold">Match Momentum</h3>
+        <div className="flex items-center gap-3 text-[11px] font-semibold">
+          <span className="flex items-center gap-1.5" style={{ color: homeColor }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColor }} />
+            {homeName}
+          </span>
+          <span className="flex items-center gap-1.5" style={{ color: awayColor }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColor }} />
+            {awayName}
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 180 }}>
+        <defs>
+          <clipPath id={`${uid}-top`}><rect x="0" y="0" width={W} height={cy} /></clipPath>
+          <clipPath id={`${uid}-bot`}><rect x="0" y={cy} width={W} height={cy} /></clipPath>
+        </defs>
+        {/* filled waves, clipped above/below the centreline */}
+        <path d={area} fill={homeColor} fillOpacity={0.5} clipPath={`url(#${uid}-top)`} />
+        <path d={area} fill={awayColor} fillOpacity={0.5} clipPath={`url(#${uid}-bot)`} />
+        {/* centreline + half-time divider */}
+        <line x1="0" y1={cy} x2={W} y2={cy} stroke="var(--border-strong)" strokeWidth="1" />
+        <line x1={htX} y1="0" x2={htX} y2={H} stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="4 4" />
+        <path d={line} fill="none" stroke="white" strokeOpacity={0.25} strokeWidth="1.5" />
+      </svg>
+      <div className="flex justify-between text-[10px] text-gray-500 font-semibold mt-1 px-0.5">
+        <span>0&apos;</span>
+        <span>HT</span>
+        <span>FT</span>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1076,7 +1167,7 @@ export default function MatchAnalytics({
     );
   }
 
-  const { home, away, events, venue, date, competition, round, manOfTheMatch } = data;
+  const { home, away, events, venue, date, competition, round, manOfTheMatch, momentum } = data;
 
   const homeColors = resolveTeamColors(home.team.name);
   const awayColors = resolveTeamColors(away.team.name);
@@ -1224,6 +1315,25 @@ export default function MatchAnalytics({
             awayColor={awayColor}
           />
         </motion.div>
+
+        {/* Match momentum */}
+        {momentum && momentum.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-2xl p-6 mb-8"
+          >
+            <MatchMomentum
+              points={momentum}
+              homeColor={homeColor}
+              awayColor={awayColor}
+              homeName={home.team.name}
+              awayName={away.team.name}
+              periodTime={45}
+            />
+          </motion.div>
+        )}
 
         {/* Team comparison */}
         <motion.div

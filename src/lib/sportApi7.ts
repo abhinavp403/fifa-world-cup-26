@@ -147,6 +147,14 @@ export async function getS7Incidents(id: number) {
   return json?.incidents ?? null;
 }
 
+// Match momentum ("attack pressure") graph — per-minute signed values where
+// positive = home pressure, negative = away. Not available for every match.
+export type S7GraphPoint = { minute: number; value: number };
+export async function getS7Graph(id: number) {
+  const json = await s7<{ graphPoints: S7GraphPoint[] }>(`event/${id}/graph`);
+  return json?.graphPoints ?? null;
+}
+
 // Best (highest-rated) player per side — used to surface the man of the match.
 export type S7BestPlayer = {
   player: { id: number; name: string; position?: string };
