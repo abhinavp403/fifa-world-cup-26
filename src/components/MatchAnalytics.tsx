@@ -970,6 +970,7 @@ function smoothLine(pts: [number, number][]): string {
 
 function MatchMomentum({
   points,
+  goals,
   homeColor,
   awayColor,
   homeName,
@@ -977,6 +978,7 @@ function MatchMomentum({
   periodTime,
 }: {
   points: { minute: number; value: number }[];
+  goals: { minute: number; isHome: boolean; scorer: string }[];
   homeColor: string;
   awayColor: string;
   homeName: string;
@@ -997,35 +999,110 @@ function MatchMomentum({
   const area = `${line} L ${xy[xy.length - 1][0]},${cy} L ${xy[0][0]},${cy} Z`;
   const htX = x(periodTime);
   const uid = `mom-${Math.round(maxMin)}-${Math.round(maxAbs)}`;
+  const bw = (W / Math.max(points.length, 1)) * 0.62;
+  const [view, setView] = useState<"waves" | "bars">("waves");
+
+  const axis = (
+    <>
+      <line x1="0" y1={cy} x2={W} y2={cy} stroke="var(--border-strong)" strokeWidth="1" />
+      <line x1={htX} y1="0" x2={htX} y2={H} stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="4 4" />
+      {/* faint guide line at each goal minute */}
+      {goals.map((g, i) => (
+        <line
+          key={i}
+          x1={x(g.minute)}
+          y1="0"
+          x2={x(g.minute)}
+          y2={H}
+          stroke={g.isHome ? homeColor : awayColor}
+          strokeOpacity={0.4}
+          strokeWidth="1"
+        />
+      ))}
+    </>
+  );
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h3 className="text-white text-xl font-bold">Match Momentum</h3>
-        <div className="flex items-center gap-3 text-[11px] font-semibold">
-          <span className="flex items-center gap-1.5" style={{ color: homeColor }}>
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColor }} />
-            {homeName}
-          </span>
-          <span className="flex items-center gap-1.5" style={{ color: awayColor }}>
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColor }} />
-            {awayName}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-lg border border-[var(--border-strong)] overflow-hidden text-[11px] font-semibold">
+            {(["waves", "bars"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`px-2.5 py-1 capitalize transition-colors ${
+                  view === v ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-[11px] font-semibold">
+            <span className="flex items-center gap-1.5" style={{ color: homeColor }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: homeColor }} />
+              {homeName}
+            </span>
+            <span className="flex items-center gap-1.5" style={{ color: awayColor }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: awayColor }} />
+              {awayName}
+            </span>
+          </div>
         </div>
       </div>
+      <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 180 }}>
-        <defs>
-          <clipPath id={`${uid}-top`}><rect x="0" y="0" width={W} height={cy} /></clipPath>
-          <clipPath id={`${uid}-bot`}><rect x="0" y={cy} width={W} height={cy} /></clipPath>
-        </defs>
-        {/* filled waves, clipped above/below the centreline */}
-        <path d={area} fill={homeColor} fillOpacity={0.5} clipPath={`url(#${uid}-top)`} />
-        <path d={area} fill={awayColor} fillOpacity={0.5} clipPath={`url(#${uid}-bot)`} />
-        {/* centreline + half-time divider */}
-        <line x1="0" y1={cy} x2={W} y2={cy} stroke="var(--border-strong)" strokeWidth="1" />
-        <line x1={htX} y1="0" x2={htX} y2={H} stroke="var(--border-strong)" strokeWidth="1" strokeDasharray="4 4" />
-        <path d={line} fill="none" stroke="white" strokeOpacity={0.25} strokeWidth="1.5" />
+        {view === "waves" ? (
+          <>
+            <defs>
+              <clipPath id={`${uid}-top`}><rect x="0" y="0" width={W} height={cy} /></clipPath>
+              <clipPath id={`${uid}-bot`}><rect x="0" y={cy} width={W} height={cy} /></clipPath>
+            </defs>
+            <path d={area} fill={homeColor} fillOpacity={0.5} clipPath={`url(#${uid}-top)`} />
+            <path d={area} fill={awayColor} fillOpacity={0.5} clipPath={`url(#${uid}-bot)`} />
+            {axis}
+            <path d={line} fill="none" stroke="white" strokeOpacity={0.25} strokeWidth="1.5" />
+          </>
+        ) : (
+          <>
+            {points.map((p, i) => {
+              const yv = y(p.value);
+              const up = p.value >= 0;
+              return (
+                <rect
+                  key={i}
+                  x={x(p.minute) - bw / 2}
+                  y={Math.min(cy, yv)}
+                  width={bw}
+                  height={Math.abs(yv - cy)}
+                  rx={Math.min(bw / 2, 2)}
+                  fill={up ? homeColor : awayColor}
+                  fillOpacity={0.75}
+                />
+              );
+            })}
+            {axis}
+          </>
+        )}
       </svg>
+        {/* goal markers (HTML overlay to avoid SVG aspect distortion) */}
+        {goals.map((g, i) => (
+          <div
+            key={i}
+            className="absolute -translate-x-1/2 leading-none pointer-events-none"
+            style={{
+              left: `${Math.min((g.minute / maxMin) * 100, 99)}%`,
+              ...(g.isHome ? { top: 2 } : { bottom: 2 }),
+            }}
+            title={`${g.scorer} ${g.minute}'`}
+          >
+            <span className="text-[13px]">⚽</span>
+          </div>
+        ))}
+      </div>
       <div className="flex justify-between text-[10px] text-gray-500 font-semibold mt-1 px-0.5">
         <span>0&apos;</span>
         <span>HT</span>
@@ -1326,6 +1403,13 @@ export default function MatchAnalytics({
           >
             <MatchMomentum
               points={momentum}
+              goals={events
+                .filter((e) => e.type === "goal" || e.type === "ownGoal")
+                .map((e) => ({
+                  minute: e.minute + (e.extra ?? 0),
+                  isHome: e.teamId === home.team.id,
+                  scorer: e.player,
+                }))}
               homeColor={homeColor}
               awayColor={awayColor}
               homeName={home.team.name}
