@@ -168,7 +168,9 @@ function drawMirroredBars(
     ctx.fill();
     ctx.fillStyle = COL.TEXT;
     ctx.textAlign = "left";
-    ctx.fillText(`${s.vb}${s.unit ?? ""}`, cx + 82 + wB, y + 19);
+    // Mirror the home label: pin the value just inside the bar's inner edge
+    // (not offset past the bar end) so both sides read consistently.
+    ctx.fillText(`${s.vb}${s.unit ?? ""}`, cx + 82, y + 19);
   });
 }
 
