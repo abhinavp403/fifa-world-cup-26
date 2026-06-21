@@ -1,141 +1,100 @@
 # FIFA World Cup 2026 Dashboard
 
-A sophisticated, real-time dashboard for the FIFA World Cup 2026 featuring live group standings, knockout bracket, venue information, and match analytics.
+A real-time dashboard for the FIFA World Cup 2026 — live group standings, a dynamic knockout bracket, deep match analytics, per-player stat sheets, head-to-head team comparison, squad rosters, and host-city information.
+
+**🔗 Live site: [fifa-world-cup-26-nu.vercel.app](https://fifa-world-cup-26-nu.vercel.app/)**
 
 ## Features
 
-- **Live Group Standings** — Real-time standings for all 12 groups with FIFA tiebreak rules (points → goal difference → goals for)
-- **Dynamic Knockout Bracket** — 5-round bracket (R32 → R16 → QF → SF → Final) that auto-populates with qualifying teams as results come in
-- **Team Search & Filtering** — Filter teams by confederation (UEFA, CONMEBOL, CONCACAF, AFC, CAF, OFC) or search by name
-- **Host Cities & Venues** — All 16 host cities across USA, Canada, and Mexico with stadium capacities and match schedules
-- **Real-Time Data Integration** — Fetches live match results from football-data.org API (free tier)
-- **Group Analytics** — Difficulty ranking (Group of Death / Competitive / Balanced) based on average FIFA rank
-- **Responsive Design** — Floating navigation sidebar (desktop) / bottom icon rail (mobile)
-- **Aurora Gradient Background** — Animated gradient with smooth drift and noise texture overlay
-- **Live Data Status** — Visual indicators show when data is live vs. awaiting draw
+### Tournament
+- **Live group standings** — all 12 groups with FIFA tiebreak rules (points → goal difference → goals for) and a goal-difference column
+- **Dynamic knockout bracket** — R32 → R16 → QF → SF → Final, auto-populating with qualifying teams as results come in
+- **Today's / upcoming fixtures** — clickable to open full match analytics
+- **Team search & filtering** — accent-insensitive search and confederation filters (UEFA, CONMEBOL, CONCACAF, AFC, CAF, OFC) that narrow the standings to the matching teams
+- **Host cities & venues** — all 16 host cities across the USA, Canada, and Mexico
+- **Expand/collapse all matches** toggle, and five selectable colour themes
 
-## Tech Stack
+### Match analytics (per match)
+- **Team stat comparison** — possession, shots, passing, key passes, tackles, cards and more
+- **Lineups & formations** for both sides, with per-player ratings
+- **Key moments timeline** — goals, cards, and substitutions
+- **Match momentum** — Sofascore attack-pressure graph rendered as smooth waves or per-minute bars, with goal markers
+- **Man of the Match** — scraped from FIFA's official award article
+- **Highlights** link per match
 
-- **Framework**: Next.js 16 with App Router
+### Players & teams
+- **Player stat sheets** — position-aware breakdowns (overview, defensive, passing, attacking, discipline; goalkeeping for GKs) with averages and per-90 context
+- **Head-to-head team comparison** — cumulative-totals and per-game charts plus a full stat table including xG, clearances, crosses, shots inside/outside box, touches in the box, and duel/tackle/dribble percentages
+- **Squad rosters** — 26 players per nation with photos, kept in sync with confirmed squads and injury replacements
+
+## Tech stack
+
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS v4
 - **Animations**: Framer Motion
 - **Icons**: Lucide React
-- **Data Source**: football-data.org API v4 (free tier)
-- **Deployment**: Ready for Vercel
+- **Database**: Supabase (Postgres) — squad rosters, aggregated player/team stats, Man-of-the-Match, and a per-fixture stats cache
+- **Data sources**:
+  - **sportapi7 (Sofascore via RapidAPI)** — live per-match stats, lineups, player/team statistics, and momentum
+  - **football-data.org** — fixtures and results used to derive standings and the bracket
+  - **FIFA CXM article API** — official Man-of-the-Match winners
+- **Deployment**: Vercel
 
-## Installation
+## How it works
 
-1. Clone the repository:
-```bash
-git clone https://github.com/abhinavp403/fifa-world-cup-26.git
-cd fifa-world-cup-2026
-```
+### Standings & bracket
+`GET /api/worldcup` fetches the match feed, computes group standings in real time using FIFA's tiebreak rules (points → goal difference → goals for), and resolves knockout slots with real teams as matches complete. Static fallback data keeps the page rendering before the draw/results are available.
 
-2. Install dependencies:
-```bash
-npm install
-```
+### Match analytics
+`GET /api/match` assembles a per-match payload live from Sofascore — team stats, lineups, incidents (the events timeline), per-player ratings, the momentum graph, and the FIFA-sourced Man of the Match. Responses are cached for 5 minutes (ISR).
 
-3. Create a `.env.local` file with your football-data.org API key:
-```bash
-NEXT_PUBLIC_FOOTBALL_DATA_API_KEY=your_api_key_here
-```
+### Incremental stats pipeline
+Whole-tournament player and team aggregates are too expensive to compute per request, so they're pre-aggregated into Supabase:
 
-Get your free API key from [football-data.org](https://www.football-data.org/)
+1. **Ingest** — each *newly finished* fixture is fetched once and its raw per-player and per-team contributions are cached in `fixture_stats` (the expensive, API-bound step happens exactly once per match).
+2. **Aggregate** — the cached rows are summed in the database (no API calls) and written to `players.stats` and `team_stats`.
 
-## Running the Application
+The sync runs on a **daily Vercel cron**, and is also triggered **opportunistically** (non-blocking) the first time a freshly finished match is opened — so dashboards catch up within minutes without waiting for the next cron. The Sofascore client retries on rate limits so bursts don't drop fixtures.
 
-Development server:
-```bash
-npm run dev
-```
+### Man of the Match
+`syncMotm` reads FIFA's official "Superior Player of the Match" article via the CXM API, parses each match's winner, and stores it in `match_motm`. Matches are resolved by FIFA team code so naming differences don't break the lookup.
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-Build for production:
-```bash
-npm run build
-npm run start
-```
-
-## Project Structure
+## Project structure
 
 ```
 src/
-├── app/
-│   ├── api/
-│   │   └── worldcup/
-│   │       └── route.ts          # API endpoint for groups & bracket
-│   ├── globals.css               # Aurora gradient + animations
-│   ├── layout.tsx                # Root layout with metadata
-│   └── page.tsx                  # Main dashboard page
+├── app/api/
+│   ├── worldcup/route.ts        # Standings + bracket
+│   ├── match/route.ts           # Per-match analytics (live from Sofascore)
+│   └── cron/sync-stats/route.ts # Daily incremental stats sync
 ├── components/
-│   ├── WorldCupDashboard.tsx     # Main dashboard with all sections
-│   ├── KnockoutBracket.tsx       # Bracket visualization
-│   └── SiteNav.tsx               # Floating sidebar navigation
+│   ├── WorldCupDashboard.tsx    # Main dashboard (groups, fixtures, nav)
+│   ├── KnockoutBracket.tsx      # Bracket visualisation
+│   ├── MatchAnalytics.tsx       # Match modal (stats, lineups, momentum, MOTM)
+│   ├── PlayerDashboard.tsx      # Per-player stat sheet
+│   ├── TeamComparison.tsx       # Head-to-head comparison
+│   └── TeamStatsModal.tsx       # Cumulative / per-game charts + full table
 └── lib/
-    ├── worldcup.ts               # Teams, groups, hosts, confederations
-    ├── bracket.ts                # Bracket structure (104 matches across 5 rounds + 3rd place)
-    ├── footballData.ts           # football-data.org API client
-    └── resolver.ts               # Derives standings from matches, resolves bracket slots
+    ├── sportApi7.ts             # Sofascore (sportapi7) client
+    ├── statsSync.ts             # Incremental ingest + aggregate
+    ├── teamFixtureStats.ts      # Per-fixture team-stat aggregation
+    ├── motmSync.ts              # FIFA Man-of-the-Match scraper
+    ├── footballData.ts          # football-data.org client
+    ├── resolver.ts              # Standings + bracket resolution
+    ├── squads.ts                # Squad rosters
+    └── flags.ts                 # Team codes ↔ flags
+supabase/schema.sql              # Teams, players, team_stats, match_motm, fixture_stats
+scripts/                         # Roster + stats sync utilities
+.claude/skills/wc-analytics-audit # Data-integrity audit skill
 ```
 
-## How It Works
-
-### Data Fetching
-
-The dashboard fetches match data from football-data.org's free API and derives standings automatically (the free tier doesn't provide group-level standings, only match data).
-
-1. **GET /api/worldcup** — Main endpoint that:
-   - Fetches all matches for season 2026
-   - Computes group standings from finished matches
-   - Resolves bracket slots with real teams when available
-   - Returns both live and static fallback data
-
-### Group Standings
-
-Standings are computed in real-time from match results using FIFA's official tiebreak rules:
-1. **Points** (3 for win, 1 for draw, 0 for loss)
-2. **Goal Difference** (goals for - goals against)
-3. **Goals For** (total goals scored)
-
-### Bracket Resolution
-
-The knockout bracket uses proxy slots initially:
-- **R32**: `1A` vs `2B`, `1C` vs `2D`, etc.
-- **R16+**: Proxy labels are replaced with real team objects as matches complete
-
-Dynamic population happens automatically via the `resolveBracket()` function which maps football-data.org matches to bracket positions.
-
-### Caching Strategy
-
-- **Server-side ISR** (Incremental Static Regeneration): revalidates every 5 minutes
-- Both API responses and underlying fetches use `revalidate: 300`
-- Dashboard updates automatically without manual refresh
-
-## Environment Variables
-
-- `NEXT_PUBLIC_FOOTBALL_DATA_API_KEY` — Your football-data.org API key (free tier)
-
-## Tournament Details
+## Tournament details
 
 - **Dates**: June 11 – July 19, 2026
-- **Format**: 48 teams, 12 groups (A–L), 104 matches + 1 third-place match
-- **Hosts**: USA, Canada, Mexico
-- **Venues**: 16 host cities across the three nations
-
-## Data Sources
-
-- **Team Data & Groups**: Official draw (December 5, 2025)
-- **FIFA Rankings**: April 1, 2026 official rankings from FIFA
-- **Match Results**: football-data.org API (updated live)
-- **Host Cities & Venues**: Official FIFA 2026 tournament data
+- **Format**: 48 teams, 12 groups (A–L), 104 matches + a third-place match
+- **Hosts**: USA, Canada, Mexico — 16 host cities
 
 ## License
 
 MIT
-
-## Support
-
-For issues, questions, or feature requests, please create an issue on the [GitHub repository](https://github.com/abhinavp403/fifa-world-cup-26).
