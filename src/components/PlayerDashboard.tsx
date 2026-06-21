@@ -526,7 +526,6 @@ function PlayerDetailView({
             <>
               <StatBlock label="Clearances"  value={s.clearances}    />
               <StatBlock label="Recoveries"  value={s.ballRecoveries} />
-              <StatBlock label="Crosses"     value={s.crosses}       />
               <StatBlock
                 label="Errors to Shot"
                 value={s.errorsLeadToShot}
@@ -557,9 +556,8 @@ function PlayerDetailView({
             label="Pass Acc %"
             value={s.passAccuracy > 0 ? `${s.passAccuracy}%` : "—"}
           />
-          {(pos === "DEF" || pos === "MID") && (
-            <StatBlock label="Long Balls" value={s.longBalls} />
-          )}
+          <StatBlock label="Long Balls" value={s.longBalls} />
+          <StatBlock label="Crosses" value={s.crosses} />
           <StatBlock label="Touches" value={s.touches} />
         </StatSection>
       )}
@@ -597,7 +595,7 @@ function PlayerDetailView({
 
       {/* ── Discipline (all) ── */}
       <StatSection title="Discipline" color={teamColor}>
-        <StatBlock label="Fouls Committed" value={s.foulsCommitted} accent={s.foulsCommitted > 0 ? "#fb923c" : undefined} />
+        <StatBlock label="Fouls Committed" value={s.foulsCommitted} />
         <StatBlock label="Fouls Drawn"     value={s.foulsDrawn}     />
         <StatBlock label="Yellow Cards"    value={s.yellowCards}    accent={s.yellowCards > 0 ? "#fbbf24" : undefined} />
         <StatBlock label="Red Cards"       value={s.redCards}       accent={s.redCards > 0 ? "#f43f5e" : undefined} />
