@@ -572,17 +572,28 @@ function FormationPitch({
               >
                 {p.name.split(" ").pop()}
               </text>
-              {flags.map((icon, idx) => (
-                <text
-                  key={idx}
-                  x={p.nx + 5 + idx * 3.4}
-                  y={p.ny - 4}
-                  textAnchor="middle"
-                  className="text-[3.2px]"
-                >
-                  {icon}
-                </text>
-              ))}
+              {(() => {
+                // Flags normally sit to the upper-right of the marker, but for
+                // players near the right edge a third icon would overflow the
+                // pitch — flip the row to the left in that case.
+                const rowW = (flags.length - 1) * 3.4;
+                const onRight = p.nx + 5 + rowW <= 97;
+                return flags.map((icon, idx) => (
+                  <text
+                    key={idx}
+                    x={
+                      onRight
+                        ? p.nx + 5 + idx * 3.4
+                        : p.nx - 5 - (flags.length - 1 - idx) * 3.4
+                    }
+                    y={p.ny - 4}
+                    textAnchor="middle"
+                    className="text-[3.2px]"
+                  >
+                    {icon}
+                  </text>
+                ));
+              })()}
             </g>
           );
         })}
