@@ -36,7 +36,8 @@ export async function GET() {
   // Attach a Sofascore event id to each match (keyed by the unordered team-code
   // pair + day) so the analytics modal can load real per-match data. Two teams
   // meet at most once in the group stage, so the pair is a reliable key.
-  const s7ByPair = new Map<string, { id: number; day: string }[]>();
+  type S7Pair = { id: number; day: string; stadium: string | null };
+  const s7ByPair = new Map<string, S7Pair[]>();
   for (const ev of s7events) {
     const h = findLocalTeam({ id: 0, name: ev.home });
     const a = findLocalTeam({ id: 0, name: ev.away });
@@ -44,24 +45,25 @@ export async function GET() {
     const key = [h.code, a.code].sort().join("-");
     const day = new Date(ev.startTimestamp * 1000).toISOString().slice(0, 10);
     const list = s7ByPair.get(key) ?? [];
-    list.push({ id: ev.id, day });
+    list.push({ id: ev.id, day, stadium: ev.stadium });
     s7ByPair.set(key, list);
   }
-  const lookupEvent = (homeCode: string, awayCode: string, utcDate: string) => {
+  const lookupEvent = (homeCode: string, awayCode: string, utcDate: string): S7Pair | null => {
     const list = s7ByPair.get([homeCode, awayCode].sort().join("-"));
     if (!list || list.length === 0) return null;
-    if (list.length === 1) return list[0].id;
+    if (list.length === 1) return list[0];
     const day = utcDate.slice(0, 10);
-    return (list.find((x) => x.day === day) ?? list[0]).id;
+    return list.find((x) => x.day === day) ?? list[0];
   };
   // Only played/in-progress matches get an analytics id — upcoming matches keep
-  // fixtureId null so a click shows the simple "not played yet" dialog.
+  // fixtureId null so a click shows the simple "not played yet" dialog. The
+  // stadium is attached regardless so host-city views can list every match.
   const PLAYED = new Set(["FINISHED", "AWARDED", "IN_PLAY", "PAUSED"]);
   for (const g of groups) {
     for (const m of g.matches ?? []) {
-      m.fixtureId = PLAYED.has(m.status)
-        ? lookupEvent(m.homeCode, m.awayCode, m.utcDate)
-        : null;
+      const ev = lookupEvent(m.homeCode, m.awayCode, m.utcDate);
+      m.fixtureId = ev && PLAYED.has(m.status) ? ev.id : null;
+      m.stadium = ev?.stadium ?? null;
     }
   }
 

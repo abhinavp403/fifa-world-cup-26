@@ -1096,13 +1096,94 @@ const HIGHLIGHT_BADGE: Record<
   },
 };
 
-function HostCitiesSection() {
+function CityMatchesModal({
+  city,
+  matches,
+  onMatchClick,
+  onClose,
+}: {
+  city: (typeof HOST_CITIES)[number];
+  matches: GroupMatch[];
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg max-h-[80vh] overflow-y-auto bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5"
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="min-w-0">
+            <h3 className="text-white font-bold text-lg leading-tight">{city.city}</h3>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {city.stadium} · {city.country}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-[var(--border-card)] transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {matches.length === 0 ? (
+          <p className="text-gray-500 text-sm py-8 text-center">
+            No matches played here yet.
+          </p>
+        ) : (
+          <>
+            <p className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold mb-2">
+              {matches.length} {matches.length === 1 ? "match" : "matches"} played
+            </p>
+            <div className="space-y-0.5">
+              {matches.map((m) => (
+                <GroupMatchRow
+                  key={m.id}
+                  match={m}
+                  onMatchClick={(fixtureId, label, date) => {
+                    onClose();
+                    onMatchClick(fixtureId, label, date);
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+function HostCitiesSection({
+  matches,
+  onMatchClick,
+}: {
+  matches: GroupMatch[];
+  onMatchClick: (fixtureId: number | null, label: string, date: string) => void;
+}) {
+  const [selectedCity, setSelectedCity] = useState<(typeof HOST_CITIES)[number] | null>(null);
   const sorted = [...HOST_CITIES].sort((a, b) => {
     if (b.matches !== a.matches) return b.matches - a.matches;
     return b.capacity - a.capacity;
   });
   const maxMatches = Math.max(...HOST_CITIES.map((c) => c.matches));
   const totalMatches = HOST_CITIES.reduce((sum, c) => sum + c.matches, 0);
+
+  // Played matches at a given stadium, earliest first.
+  const PLAYED = new Set(["FINISHED", "AWARDED", "IN_PLAY", "PAUSED"]);
+  const cityMatches = (stadium: string) =>
+    matches
+      .filter((m) => m.stadium === stadium && PLAYED.has(m.status))
+      .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
 
   return (
     <section id="cities" className="px-4 py-10 scroll-mt-12">
@@ -1129,9 +1210,11 @@ function HostCitiesSection() {
             const pct = (c.matches / maxMatches) * 100;
             const badge = c.highlight ? HIGHLIGHT_BADGE[c.highlight] : null;
             return (
-              <div
+              <button
                 key={c.city}
-                className={`grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_2fr_0.8fr_0.7fr_1.6fr] gap-x-4 items-center px-5 py-3 ${
+                type="button"
+                onClick={() => setSelectedCity(c)}
+                className={`w-full text-left grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_2fr_0.8fr_0.7fr_1.6fr] gap-x-4 items-center px-5 py-3 hover:bg-[var(--border-card)]/50 transition-colors cursor-pointer ${
                   i !== sorted.length - 1 ? "border-b border-[var(--border-card)]" : ""
                 }`}
               >
@@ -1192,11 +1275,20 @@ function HostCitiesSection() {
                     {Math.round(pct)}%
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
+
+      {selectedCity && (
+        <CityMatchesModal
+          city={selectedCity}
+          matches={cityMatches(selectedCity.stadium)}
+          onMatchClick={onMatchClick}
+          onClose={() => setSelectedCity(null)}
+        />
+      )}
     </section>
   );
 }
@@ -1455,7 +1547,10 @@ export default function WorldCupDashboard({
           </div>
         </section>
         <PlayersSection onPlayerClick={openTeamPlayer} />
-        <HostCitiesSection />
+        <HostCitiesSection
+          matches={(data?.groups ?? []).flatMap((g) => g.matches ?? [])}
+          onMatchClick={handleMatchClick}
+        />
         <MatchAnalytics
           fixtureId={analyticsFixtureId}
           source={analyticsSource}

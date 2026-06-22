@@ -78,7 +78,7 @@ export type S7Event = {
   startTimestamp: number;
   tournament: { name: string };
   roundInfo?: { round?: number };
-  venue?: { stadium?: { name?: string } };
+  venue?: { stadium?: { name?: string }; name?: string };
 };
 
 export type S7StatItem = {
@@ -182,14 +182,20 @@ export type S7WorldCupEvent = {
   away: string;
   startTimestamp: number;
   statusType: string; // "finished" | "inprogress" | "notstarted" | …
+  stadium: string | null;
 };
 
 export async function getS7WorldCupEvents(): Promise<S7WorldCupEvent[]> {
   const base = `unique-tournament/${S7_WC_TOURNAMENT}/season/${S7_WC_SEASON_2026}/events`;
-  // `last` = played/in-progress (most recent first), `next` = upcoming.
+  // `last` = played/in-progress (most recent first), `next` = upcoming. Paginate
+  // a few pages each way so all played fixtures are covered as the tournament
+  // grows (a single page caps at ~30 events).
   const pages = await Promise.all([
     s7<{ events: S7Event[] }>(`${base}/last/0`),
+    s7<{ events: S7Event[] }>(`${base}/last/1`),
+    s7<{ events: S7Event[] }>(`${base}/last/2`),
     s7<{ events: S7Event[] }>(`${base}/next/0`),
+    s7<{ events: S7Event[] }>(`${base}/next/1`),
   ]);
   const out: S7WorldCupEvent[] = [];
   const seen = new Set<number>();
@@ -203,6 +209,7 @@ export async function getS7WorldCupEvents(): Promise<S7WorldCupEvent[]> {
         away: e.awayTeam.name,
         startTimestamp: e.startTimestamp,
         statusType: e.status?.type ?? "",
+        stadium: e.venue?.stadium?.name ?? e.venue?.name ?? null,
       });
     }
   }

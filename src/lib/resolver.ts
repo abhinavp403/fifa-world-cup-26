@@ -110,6 +110,7 @@ export type GroupMatch = {
   awayName: string;
   homeScore: number | null;
   awayScore: number | null;
+  stadium: string | null;
 };
 
 export type ResolvedGroup = Group & {
@@ -149,6 +150,7 @@ export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
           awayName: away?.name ?? m.awayTeam?.name ?? "TBD",
           homeScore: m.score.fullTime.home,
           awayScore: m.score.fullTime.away,
+          stadium: null,
         };
       })
       .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
