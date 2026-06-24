@@ -324,7 +324,7 @@ export const SQUADS: Record<string, Squad> = {
 
   // ─── Tunisia ──────────────────────────────────────────────────────────────
   TUN: {
-    coach: "Sabri Lamouchi",
+    coach: "Sabri Lamouchi (sacked) → Hervé Renard",
     players: [
       { name: "Aymen Dahmen",        number: 16, position: "GK",  club: "CS Sfaxien",          age: 29, photo: s(1198374) },
       { name: "Sabri Ben Hessen",   number: 22, position: "GK",  club: "Étoile du Sahel",     age: 29, photo: s(359312) },
@@ -357,7 +357,7 @@ export const SQUADS: Record<string, Squad> = {
 
   // ─── Haiti ────────────────────────────────────────────────────────────────
   HAI: {
-    coach: "Marc Collat",
+    coach: "Sébastien Migné",
     players: [
       { name: "Johnny Placide",        number: 1,  position: "GK",  club: "SC Bastia",              age: 38, captain: true, photo: s(37224) },
       { name: "Alexandre Pierre",      number: 12, position: "GK",  club: "FC Sochaux",             age: 25, photo: s(1091596) },
