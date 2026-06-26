@@ -581,7 +581,7 @@ export const SQUADS: Record<string, Squad> = {
       { name: "Jovane Cabral",       number: 7,  position: "FWD", club: "Estrela Amadora",     age: 27, photo: s(845802) },
       { name: "Nuno da Costa",       number: 21, position: "FWD", club: "Başakşehir",          age: 35, photo: s(209374) },
       { name: "Dailon Livramento",   number: 19, position: "FWD", club: "Casa Pia",            age: 25, photo: s(1155358) },
-      { name: "Gilson Benchimol",    number: 9,  position: "FWD", club: "Akron Togliatti",     age: 27, photo: s(1094396) },
+      { name: "Gilson Benchimol",    number: 9,  position: "FWD", club: "Akron Togliatti",     age: 27, photo: s(1111215) },
       { name: "Hélio Varela",        number: 26, position: "FWD", club: "Maccabi Tel Aviv",    age: 24, photo: s(1094395) },
     ],
   },
