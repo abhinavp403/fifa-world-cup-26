@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 
 import { getMatches } from "@/lib/footballData";
 import { findLocalTeam, resolveBracket, resolveChampion, resolveGroups } from "@/lib/resolver";
+import type { Match } from "@/lib/bracket";
 import { getS7WorldCupEvents } from "@/lib/sportApi7";
 import { aggregateWorldCupTeamStats } from "@/lib/teamFixtureStats";
 import { getTeamFixtureStats } from "@/lib/squadsData";
@@ -67,16 +68,16 @@ export async function GET() {
     }
   }
   // Knockout matches too — once both slots are resolved to real teams.
-  for (const round of rounds) {
-    for (const m of round.matches) {
-      const h = m.slot1.team?.code;
-      const a = m.slot2.team?.code;
-      if (!h || !a) continue;
-      const ev = lookupEvent(h, a, m.date ?? "");
-      if (ev && PLAYED.has(m.status ?? "")) m.fixtureId = ev.id;
-      if (ev?.stadium) m.venue = ev.stadium;
-    }
-  }
+  const attachToBracket = (m: Match) => {
+    const h = m.slot1.team?.code;
+    const a = m.slot2.team?.code;
+    if (!h || !a) return;
+    const ev = lookupEvent(h, a, m.date ?? "");
+    if (ev && PLAYED.has(m.status ?? "")) m.fixtureId = ev.id;
+    if (ev?.stadium) m.venue = ev.stadium;
+  };
+  for (const round of rounds) round.matches.forEach(attachToBracket);
+  attachToBracket(thirdPlace);
 
   const live = matches != null;
 

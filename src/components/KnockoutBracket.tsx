@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Swords, Trophy, Medal } from "lucide-react";
+import { Swords } from "lucide-react";
 
 import { BRACKET, THIRD_PLACE_MATCH, type Match, type Round, type Slot } from "@/lib/bracket";
 import Flag from "@/components/Flag";
@@ -106,6 +106,7 @@ function RoundColumn({
   matches,
   index,
   totalRounds,
+  thirdPlace,
   onMatchClick,
 }: {
   name: string;
@@ -113,6 +114,7 @@ function RoundColumn({
   matches: Match[];
   index: number;
   totalRounds: number;
+  thirdPlace?: Match;
   onMatchClick?: (fixtureId: number | null, label: string, date: string) => void;
 }) {
   const isFinal = index === totalRounds - 1;
@@ -152,6 +154,16 @@ function RoundColumn({
           </motion.div>
         ))}
       </div>
+
+      {/* Third-place play-off sits below the final, as a real (clickable) match. */}
+      {isFinal && thirdPlace && (
+        <div className="mt-5">
+          <p className="text-rose-300 text-[10px] font-bold tracking-widest text-center mb-2">
+            3RD PLACE
+          </p>
+          <MatchCard match={thirdPlace} highlight="third" onMatchClick={onMatchClick} />
+        </div>
+      )}
     </div>
   );
 }
@@ -228,6 +240,7 @@ export default function KnockoutBracket({
                     matches={round.matches}
                     index={i}
                     totalRounds={rounds.length}
+                    thirdPlace={i === rounds.length - 1 ? thirdPlace : undefined}
                     onMatchClick={onMatchClick}
                   />
                 ))}
@@ -239,43 +252,6 @@ export default function KnockoutBracket({
           <p className="text-gray-600 text-[11px] text-center mt-2 sm:hidden">
             Swipe horizontally to see all rounds →
           </p>
-        </div>
-
-        {/* Third-place + Champion strip */}
-        <div className="grid sm:grid-cols-2 gap-4 mt-5">
-          <div className="bg-[var(--bg-card)] border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
-              <Medal className="w-5 h-5 text-rose-300" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-rose-200 text-[10px] font-bold tracking-widest">
-                THIRD-PLACE PLAY-OFF
-              </p>
-              <p className="text-white font-semibold text-sm">
-                {thirdPlace.slot1.label} vs {thirdPlace.slot2.label}
-              </p>
-              <p className="text-gray-500 text-[11px] mt-0.5">
-                Jul 18, 2026 · {thirdPlace.venue}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-[var(--bg-card)] to-[var(--border-card)] border border-amber-400/40 rounded-2xl p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
-              <Trophy className="w-5 h-5 text-amber-300" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-amber-200 text-[10px] font-bold tracking-widest">
-                FINAL · CHAMPION
-              </p>
-              <p className="text-white font-semibold text-sm">
-                Crowned at MetLife Stadium
-              </p>
-              <p className="text-gray-500 text-[11px] mt-0.5">
-                Jul 19, 2026 · East Rutherford, NJ
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </section>
