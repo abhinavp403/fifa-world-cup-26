@@ -66,6 +66,17 @@ export async function GET() {
       m.stadium = ev?.stadium ?? null;
     }
   }
+  // Knockout matches too — once both slots are resolved to real teams.
+  for (const round of rounds) {
+    for (const m of round.matches) {
+      const h = m.slot1.team?.code;
+      const a = m.slot2.team?.code;
+      if (!h || !a) continue;
+      const ev = lookupEvent(h, a, m.date ?? "");
+      if (ev && PLAYED.has(m.status ?? "")) m.fixtureId = ev.id;
+      if (ev?.stadium) m.venue = ev.stadium;
+    }
+  }
 
   const live = matches != null;
 
