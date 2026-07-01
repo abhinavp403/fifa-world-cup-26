@@ -79,6 +79,19 @@ create table if not exists public.fixture_stats (
 alter table public.fixture_stats enable row level security;
 -- No public read policy: only the sync (service_role key) touches this table.
 
+-- Durable snapshots of the full per-match analytics payload (lineups, events,
+-- momentum, stats, ratings). The match route serves these first for finished
+-- fixtures, so analytics keep working — and cost no live API calls — even after
+-- the Sofascore (RapidAPI) subscription lapses. Written with the service key.
+create table if not exists public.match_analytics (
+  fixture_id bigint primary key,   -- Sofascore event id
+  payload    jsonb not null,
+  synced_at  timestamptz not null default now()
+);
+
+alter table public.match_analytics enable row level security;
+-- No public read policy: only the match route (service_role key) touches this.
+
 -- keep updated_at fresh on any write
 create or replace function public.touch_updated_at() returns trigger as $$
 begin

@@ -578,6 +578,33 @@ async function fifaMotm(
   };
 }
 
+// Durable per-match snapshot (survives the RapidAPI subscription lapsing).
+async function loadMatchSnapshot(id: number): Promise<MatchPayload | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  const { data } = await sb
+    .from("match_analytics")
+    .select("payload")
+    .eq("fixture_id", id)
+    .maybeSingle();
+  return (data?.payload as MatchPayload) ?? null;
+}
+
+async function saveMatchSnapshot(id: number, payload: MatchPayload) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  await sb
+    .from("match_analytics")
+    .upsert(
+      { fixture_id: id, payload, synced_at: new Date().toISOString() },
+      { onConflict: "fixture_id" },
+    );
+}
+
 async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
   const ev = await getS7Event(id);
   if (!ev) return null;
@@ -666,18 +693,32 @@ export async function GET(request: Request) {
   // sportapi7 (Sofascore via RapidAPI) — covers competitions api-football's
   // free plan can't read, with richer per-player data.
   if (source === "rapidapi" && idParam) {
-    const payload = await buildFromSportApi7(parseInt(idParam, 10));
+    const id = parseInt(idParam, 10);
+
+    // Serve a durable snapshot first — finished matches are immutable, so this
+    // needs no live API call and keeps working if the Sofascore subscription
+    // lapses. MOTM is DB-backed and may be scraped after the snapshot, so keep
+    // it fresh on the way out.
+    const snap = await loadMatchSnapshot(id);
+    if (snap) {
+      snap.manOfTheMatch =
+        (await fifaMotm(snap.home.team.name, snap.away.team.name)) ?? snap.manOfTheMatch;
+      return NextResponse.json(snap);
+    }
+
+    const payload = await buildFromSportApi7(id);
     if (!payload) {
       return NextResponse.json(
         { live: false, error: "No match data available", updatedAt: new Date().toISOString() },
         { status: 200 },
       );
     }
-    // Opportunistically fold a freshly finished match into the player/team
-    // dashboards. Runs after the response (non-blocking); syncStats only does
-    // real work the first time this fixture is seen (force:false → no-op once
-    // it's already cached). The 5-min route cache keeps this from firing often.
-    if (payload.status === "FT") {
+
+    // Once a match is complete, persist the full payload so it survives without
+    // the live API — and fold it into the player/team dashboards (non-blocking).
+    // Guard on a non-empty lineup so a rate-limited/thin build isn't cached.
+    if (payload.status === "FT" && payload.home.players.length > 0) {
+      await saveMatchSnapshot(id, payload);
       after(async () => {
         try {
           await syncStats(2026, { force: false });

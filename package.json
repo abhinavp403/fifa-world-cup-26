@@ -11,7 +11,8 @@
     "fix:shirt-numbers": "node --import tsx scripts/fix-shirt-numbers.ts",
     "sync:roster": "node --import tsx scripts/sync-roster.ts",
     "sync:stats": "node --conditions=react-server --env-file=.env.local --import tsx scripts/sync-stats.ts",
-    "sync:motm": "node --conditions=react-server --env-file=.env.local --import tsx scripts/sync-motm.ts"
+    "sync:motm": "node --conditions=react-server --env-file=.env.local --import tsx scripts/sync-motm.ts",
+    "snapshot:matches": "node --conditions=react-server --env-file=.env.local --import tsx scripts/snapshot-matches.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
