@@ -148,6 +148,8 @@ export type MatchPayload = {
   // Per-minute momentum ("attack pressure"): positive = home, negative = away.
   // null when Sofascore has no graph for the fixture.
   momentum: { minute: number; value: number }[] | null;
+  // Penalty-shootout score (e.g. 3-4), null unless the match went to penalties.
+  penalties: { home: number; away: number } | null;
   updatedAt: string;
 };
 
@@ -388,8 +390,10 @@ function buildS7Side(
   // team logos, so no logo URL is emitted here. (The api-football path still
   // supplies real logo URLs for the competitions it covers.)
   const team = { id: t.id, name: t.name, logo: "", fifaCode: S7_NAME_TO_FIFA[t.name] ?? null };
-  const goals =
-    (side === "home" ? ev.homeScore.current : ev.awayScore.current) ?? 0;
+  // Use the regulation/ET result (display), not `current`, which folds in the
+  // penalty-shootout goals (so a 1-1 shootout would otherwise read 4-5).
+  const sc = side === "home" ? ev.homeScore : ev.awayScore;
+  const goals = (sc.display ?? sc.current) ?? 0;
 
   const passes = s7TeamStat(stats, "passes", side);
   const accurate = s7TeamStat(stats, "accuratePasses", side);
@@ -640,6 +644,10 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
     // Only the FIFA scraper supplies MOTM; no fallback — show nothing until it does.
     manOfTheMatch: await fifaMotm(ev.homeTeam.name, ev.awayTeam.name),
     momentum: momentum && momentum.length > 0 ? momentum : null,
+    penalties:
+      ev.homeScore.penalties != null && ev.awayScore.penalties != null
+        ? { home: ev.homeScore.penalties, away: ev.awayScore.penalties }
+        : null,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -727,6 +735,7 @@ export async function GET(request: Request) {
     events: matchEvents,
     manOfTheMatch: null, // not exposed by api-football
     momentum: null, // not exposed by api-football
+    penalties: null,
     updatedAt: new Date().toISOString(),
   };
 

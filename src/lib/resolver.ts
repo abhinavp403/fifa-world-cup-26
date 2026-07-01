@@ -23,6 +23,19 @@ import {
 
 const ALL_TEAMS: Team[] = GROUPS.flatMap((g) => g.teams);
 
+// The score to display: for penalty shootouts football-data's `fullTime` folds
+// in the shootout goals (a 1-1 reads 4-5), so use regular + extra time instead.
+function fdScore(score: FDMatch["score"]): { home: number | null; away: number | null } {
+  if (score.duration === "PENALTY_SHOOTOUT" && score.regularTime) {
+    const et = score.extraTime;
+    return {
+      home: (score.regularTime.home ?? 0) + (et?.home ?? 0),
+      away: (score.regularTime.away ?? 0) + (et?.away ?? 0),
+    };
+  }
+  return score.fullTime;
+}
+
 const NAME_OVERRIDES: Record<string, string> = {
   // football-data → local code
   "united states": "USA",
@@ -148,8 +161,8 @@ export function resolveGroups(matches: FDMatch[] | null): ResolvedGroup[] {
           awayCode: away?.code ?? m.awayTeam?.tla ?? "TBD",
           awayFlag: away?.flag ?? "🏳️",
           awayName: away?.name ?? m.awayTeam?.name ?? "TBD",
-          homeScore: m.score.fullTime.home,
-          awayScore: m.score.fullTime.away,
+          homeScore: fdScore(m.score).home,
+          awayScore: fdScore(m.score).away,
           stadium: null,
         };
       })
@@ -262,8 +275,8 @@ export function resolveBracket(matches: FDMatch[] | null): {
         date: fd.utcDate,
         slot1: slotFromFD(fd.homeTeam, m.slot1),
         slot2: slotFromFD(fd.awayTeam, m.slot2),
-        homeScore: fd.score.fullTime.home,
-        awayScore: fd.score.fullTime.away,
+        homeScore: fdScore(fd.score).home,
+        awayScore: fdScore(fd.score).away,
         status: fd.status,
       } satisfies Match;
     });

@@ -72,8 +72,10 @@ export type S7Event = {
   id: number;
   homeTeam: S7Team;
   awayTeam: S7Team;
-  homeScore: { current?: number };
-  awayScore: { current?: number };
+  // `current` includes penalty-shootout goals; `display`/`normaltime` is the
+  // 1-1-style result, and `penalties` is the shootout score.
+  homeScore: { current?: number; display?: number; normaltime?: number; penalties?: number };
+  awayScore: { current?: number; display?: number; normaltime?: number; penalties?: number };
   status: { type: string; description: string };
   startTimestamp: number;
   tournament: { name: string };

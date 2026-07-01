@@ -1255,7 +1255,7 @@ export default function MatchAnalytics({
     );
   }
 
-  const { home, away, events, venue, date, competition, round, manOfTheMatch, momentum } = data;
+  const { home, away, events, venue, date, competition, round, manOfTheMatch, momentum, penalties } = data;
 
   const homeColors = resolveTeamColors(home.team.name);
   const awayColors = resolveTeamColors(away.team.name);
@@ -1323,6 +1323,17 @@ export default function MatchAnalytics({
               <div className="text-5xl font-bold" style={{ color: awayColor }}>{away.stats.goals}</div>
             </div>
           </div>
+          {penalties && (
+            <p className="text-center text-amber-300 text-sm font-semibold mb-2">
+              Penalties {penalties.home}–{penalties.away}
+              {penalties.home !== penalties.away && (
+                <span className="text-gray-400 font-normal">
+                  {" · "}
+                  {(penalties.home > penalties.away ? home.team.name : away.team.name)} win
+                </span>
+              )}
+            </p>
+          )}
           <p className="text-gray-400 text-center text-sm">
             {venue ?? "Unknown venue"} ·{" "}
             {new Date(date).toLocaleDateString(undefined, {

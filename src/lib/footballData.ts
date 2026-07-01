@@ -40,8 +40,12 @@ export type FDMatch = {
   awayTeam: FDTeam;
   score: {
     winner: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
-    duration: string;
+    duration: string; // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT
+    // fullTime folds in penalty-shootout goals; regularTime/extraTime give the
+    // pre-shootout result.
     fullTime: { home: number | null; away: number | null };
+    regularTime?: { home: number | null; away: number | null };
+    extraTime?: { home: number | null; away: number | null };
   };
 };
 
