@@ -597,6 +597,10 @@ async function buildFromSportApi7(id: number): Promise<MatchPayload | null> {
       const teamId = inc.isHome ? ev.homeTeam.id : ev.awayTeam.id;
       const minute = (inc.time ?? 0);
       const extra = inc.addedTime && inc.addedTime < 100 ? inc.addedTime : null;
+      // Sofascore uses time = -5 for pre-match / bench-staff incidents (no pitch
+      // player); skip those so they don't show as "Unknown" at minute -5.
+      if (minute < 0) return null;
+      if (inc.incidentType === "card" && !inc.player) return null;
       if (inc.incidentType === "goal") {
         const own = inc.incidentClass === "ownGoal";
         return {
