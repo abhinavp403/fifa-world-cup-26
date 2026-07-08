@@ -332,7 +332,7 @@ function StatBlock({
   accent?: string;
 }) {
   return (
-    <div className="bg-[var(--bg-card-deep)] border border-[var(--border-row)] rounded-xl p-3 text-center">
+    <div className="bg-[var(--bg-card-deep)] border border-[var(--border-row)] rounded-xl p-3 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:bg-[var(--bg-card)]">
       <p className="text-[9px] font-bold tracking-widest text-gray-600 uppercase mb-1.5 leading-tight">
         {label}
       </p>
@@ -421,14 +421,14 @@ function PlayerDetailView({
         className="flex items-start gap-5 mb-8 pb-7 border-b"
         style={{ borderBottomColor: teamColor + "33" }}
       >
-        <div className="relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24">
+        <div className="group relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24">
           {player.photo ? (
             <Image
               src={player.photo}
               alt={player.name}
               fill
               sizes="96px"
-              className="object-cover object-top rounded-2xl"
+              className="object-cover object-top rounded-2xl transition-transform duration-300 group-hover:scale-105"
               style={{ backgroundColor: teamColor + "22" }}
               unoptimized
             />
@@ -619,7 +619,7 @@ function SummaryCard({
   sub?:      string;
 }) {
   return (
-    <div className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-xl p-4 text-center">
+    <div className="bg-[var(--bg-card)]/80 border border-[var(--border-strong)] rounded-xl p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent-500)]/40">
       <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">{label}</p>
       <p className="text-white font-bold text-lg leading-tight truncate">{value}</p>
       {sub && <p className="text-gray-600 text-[10px] mt-0.5 truncate">{sub}</p>}
@@ -721,6 +721,14 @@ export default function PlayerDashboard({
         <div
           className="h-1 w-full rounded-t-2xl flex-shrink-0"
           style={{ background: `linear-gradient(to right, ${color}, ${color}44, transparent)` }}
+        />
+        {/* Ambient team-color glow behind the header */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-0 inset-x-0 h-52"
+          style={{
+            background: `radial-gradient(560px 200px at 18% 0%, ${color}2e, transparent 70%)`,
+          }}
         />
         <button
           type="button"

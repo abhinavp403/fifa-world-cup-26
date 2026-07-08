@@ -296,3 +296,38 @@ html.theme-light::-webkit-scrollbar-thumb:hover {
 @media (prefers-reduced-motion: reduce) {
   .bg-aurora::before { animation: none; }
 }
+
+/* ── Polish layer: shine, float, selection, smooth scroll ────────────────── */
+
+/* Gradient sweep across the "2026" hero text. */
+.shine-text {
+  background-size: 200% auto;
+  animation: shine-sweep 5s ease-in-out infinite;
+}
+@keyframes shine-sweep {
+  0%, 100% { background-position: 0% center; }
+  50%      { background-position: 100% center; }
+}
+
+/* Mascots bob gently next to the title. */
+.float-gently {
+  animation: float-gently 5.5s ease-in-out infinite;
+}
+@keyframes float-gently {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-7px) rotate(-2deg); }
+}
+
+/* Text selection picks up the theme accent. */
+::selection {
+  background: var(--accent-500, #3b82f6);
+  color: #fff;
+}
+
+/* Smooth in-page jumps (nav, command palette) — unless the user opts out. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shine-text, .float-gently { animation: none; }
+}

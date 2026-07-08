@@ -358,11 +358,15 @@ function StatRow({
   label,
   valA,
   valB,
+  colorA,
+  colorB,
   highlightHigher = true,
 }: {
   label:            string;
   valA:             string | number;
   valB:             string | number;
+  colorA?:          string;
+  colorB?:          string;
   highlightHigher?: boolean;
 }) {
   const numA = typeof valA === "number" ? valA : null;
@@ -378,12 +382,22 @@ function StatRow({
       : "text-gray-300 font-semibold";
 
   return (
-    <div className="grid grid-cols-[1.2fr_1fr_1fr] items-center gap-4 px-4 py-3 border-b border-[var(--border-row)]/60 last:border-0">
+    <div className="grid grid-cols-[1.2fr_1fr_1fr] items-center gap-4 px-4 py-3 border-b border-[var(--border-row)]/60 last:border-0 transition-colors hover:bg-white/[0.03]">
       <p className="text-[11px] font-bold tracking-widest text-gray-500 uppercase">
         {label}
       </p>
-      <p className={`text-base tabular-nums ${cellCls(aWins)}`}>{valA}</p>
-      <p className={`text-base tabular-nums ${cellCls(bWins)}`}>{valB}</p>
+      <p className={`text-base tabular-nums flex items-center gap-2 ${cellCls(aWins)}`}>
+        {aWins && colorA && (
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: colorA }} />
+        )}
+        {valA}
+      </p>
+      <p className={`text-base tabular-nums flex items-center gap-2 ${cellCls(bWins)}`}>
+        {bWins && colorB && (
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: colorB }} />
+        )}
+        {valB}
+      </p>
     </div>
   );
 }
@@ -432,12 +446,12 @@ function ComparisonTable({
       {/* Stat rows */}
       <StatRow label="Final Result"   valA={statsA.stage}         valB={statsB.stage}         highlightHigher={false} />
       <StatRow label="Matches Played" valA={statsA.played}        valB={statsB.played}        highlightHigher={false} />
-      <StatRow label="Wins"           valA={statsA.wins}          valB={statsB.wins}          />
+      <StatRow label="Wins"           valA={statsA.wins}          valB={statsB.wins}          colorA={colorA} colorB={colorB} />
       <StatRow label="Draws"          valA={statsA.draws}         valB={statsB.draws}         highlightHigher={false} />
       <StatRow label="Losses"         valA={statsA.losses}        valB={statsB.losses}        highlightHigher={false} />
-      <StatRow label="Goals Scored"   valA={statsA.goalsScored}   valB={statsB.goalsScored}   />
+      <StatRow label="Goals Scored"   valA={statsA.goalsScored}   valB={statsB.goalsScored}   colorA={colorA} colorB={colorB} />
       <StatRow label="Goals Conceded" valA={statsA.goalsConceded} valB={statsB.goalsConceded} highlightHigher={false} />
-      <StatRow label="Clean Sheets"   valA={statsA.cleanSheets}   valB={statsB.cleanSheets}   />
+      <StatRow label="Clean Sheets"   valA={statsA.cleanSheets}   valB={statsB.cleanSheets}   colorA={colorA} colorB={colorB} />
       <StatRow
         label="Top Scorer"
         valA={statsA.topScorer ? `${statsA.topScorer.name} (${statsA.topScorer.goals})` : "—"}

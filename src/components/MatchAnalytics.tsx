@@ -86,7 +86,7 @@ function StatCard({
     }`;
 
   return (
-    <div className="bg-[var(--border-card)]/60 border border-[var(--border-strong)] rounded-lg p-3">
+    <div className="bg-[var(--border-card)]/60 border border-[var(--border-strong)] rounded-lg p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--accent-500)]/40">
       <div className="flex items-center justify-center gap-2 mb-2.5">
         <Icon className="w-4 h-4 text-gray-300" />
         <span className="text-gray-400 text-xs font-semibold uppercase tracking-wide">
@@ -1236,9 +1236,33 @@ export default function MatchAnalytics({
 
   if (loading) {
     return dialogShell(
-      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin mb-3" />
-        <p className="text-sm">Fetching latest match data…</p>
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-gray-400">
+        {/* Scoreboard skeleton */}
+        <div className="w-full max-w-xl animate-pulse mb-8">
+          <div className="h-3 w-40 bg-[var(--bg-card)] rounded mx-auto mb-6" />
+          <div className="flex items-center justify-center gap-8">
+            <div className="flex flex-col items-center gap-3 flex-1">
+              <div className="w-16 h-10 bg-[var(--bg-card)] rounded" />
+              <div className="h-4 w-24 bg-[var(--bg-card)] rounded" />
+              <div className="h-10 w-10 bg-[var(--bg-card)] rounded-lg" />
+            </div>
+            <div className="h-6 w-14 bg-[var(--bg-card)] rounded-full" />
+            <div className="flex flex-col items-center gap-3 flex-1">
+              <div className="w-16 h-10 bg-[var(--bg-card)] rounded" />
+              <div className="h-4 w-24 bg-[var(--bg-card)] rounded" />
+              <div className="h-10 w-10 bg-[var(--bg-card)] rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-5 gap-3 mt-8">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-16 bg-[var(--bg-card)] rounded-lg" />
+            ))}
+          </div>
+        </div>
+        <p className="text-sm flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Fetching latest match data…
+        </p>
       </div>,
     );
   }
@@ -1293,8 +1317,17 @@ export default function MatchAnalytics({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="relative mb-8"
         >
+          {/* Ambient team-color glows behind the scoreboard */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-x-6 -top-8 h-56 opacity-25 blur-2xl"
+            style={{
+              background: `radial-gradient(340px 170px at 18% 30%, ${homeColor}, transparent 70%), radial-gradient(340px 170px at 82% 30%, ${awayColor}, transparent 70%)`,
+            }}
+          />
+          <div className="relative">
           <div className="text-gray-500 text-xs uppercase tracking-wider text-center mb-3">
             {competition} · {round}
           </div>
@@ -1308,9 +1341,21 @@ export default function MatchAnalytics({
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {home.team.name}
               </div>
-              <div className="text-5xl font-bold" style={{ color: homeColor }}>{home.stats.goals}</div>
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.15 }}
+                className="text-5xl font-bold tabular-nums"
+                style={{ color: homeColor }}
+              >
+                {home.stats.goals}
+              </motion.div>
             </div>
-            <div className="text-gray-500 text-2xl font-bold">VS</div>
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-400 border border-[var(--border-strong)] bg-[var(--bg-card)]/80 rounded-full px-3 py-1">
+                {data.status === "FT" ? "FULL TIME" : data.status || "VS"}
+              </span>
+            </div>
             <div className="text-center flex-1">
               <div className="flex justify-center mb-2">
                 {away.team.fifaCode && (
@@ -1320,7 +1365,15 @@ export default function MatchAnalytics({
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {away.team.name}
               </div>
-              <div className="text-5xl font-bold" style={{ color: awayColor }}>{away.stats.goals}</div>
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.25 }}
+                className="text-5xl font-bold tabular-nums"
+                style={{ color: awayColor }}
+              >
+                {away.stats.goals}
+              </motion.div>
             </div>
           </div>
           {penalties && (
@@ -1355,6 +1408,7 @@ export default function MatchAnalytics({
               </a>
             </div>
           )}
+          </div>
         </motion.div>
 
         {/* Key stats grid */}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { animate, motion, useInView, useScroll } from "framer-motion";
 import {
   Trophy,
   Flag,
@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Search,
 } from "lucide-react";
 
 import {
@@ -35,6 +36,7 @@ import MatchAnalytics from "@/components/MatchAnalytics";
 import PlayerDashboard from "@/components/PlayerDashboard";
 import PlayersSection from "@/components/PlayersSection";
 import TeamComparison from "@/components/TeamComparison";
+import CommandPalette from "@/components/CommandPalette";
 import type { Squad } from "@/lib/squads";
 import { SquadsProvider, useSquads } from "@/lib/squadsContext";
 import type { Match, Round } from "@/lib/bracket";
@@ -428,7 +430,7 @@ function Hero({
               FIFA World Cup
               <br />
               <span className="inline-flex items-center gap-3">
-                <span className="bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)] bg-clip-text text-transparent">
+                <span className="shine-text bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)] bg-clip-text text-transparent">
                   2026
                 </span>
                 <Image
@@ -437,7 +439,7 @@ function Hero({
                   width={812}
                   height={667}
                   priority
-                  className="w-14 sm:w-16 lg:w-20 h-auto drop-shadow-[0_3px_10px_rgba(0,0,0,0.3)]"
+                  className="float-gently w-14 sm:w-16 lg:w-20 h-auto drop-shadow-[0_3px_10px_rgba(0,0,0,0.3)]"
                 />
               </span>
             </h1>
@@ -498,6 +500,44 @@ function Hero({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Page chrome — scroll progress + animated numbers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Slim gradient bar along the top edge that tracks reading progress.
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll();
+  return (
+    <motion.div
+      style={{ scaleX: scrollYProgress }}
+      className="fixed top-0 left-0 right-0 h-[3px] origin-left z-[60] bg-gradient-to-r from-[var(--grad-from)] via-[var(--grad-via)] to-[var(--grad-to)]"
+    />
+  );
+}
+
+// Counts up from 0 the first time it scrolls into view.
+function AnimatedNumber({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(0, value, {
+      duration: 1.1,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, value]);
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {display}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Stat strip
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -521,9 +561,9 @@ function StatCard({
     rose: "from-rose-500/20 to-rose-500/0 text-rose-400",
   } as const;
   return (
-    <div className="relative bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5 overflow-hidden">
+    <div className="group relative bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-5 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent-500)]/40 hover:shadow-[0_10px_32px_rgba(0,0,0,0.3)]">
       <div
-        className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${accentMap[accent]} blur-2xl opacity-60`}
+        className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${accentMap[accent]} blur-2xl opacity-60 transition-opacity duration-300 group-hover:opacity-100`}
       />
       <div className="relative">
         <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-widest">
@@ -531,7 +571,7 @@ function StatCard({
           {label}
         </div>
         <div className="text-white font-bold text-3xl mt-2 tabular-nums">
-          {value}
+          {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
         </div>
         {hint && <div className="text-gray-500 text-xs mt-1">{hint}</div>}
       </div>
@@ -1449,7 +1489,20 @@ export default function WorldCupDashboard({
   const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [initialPlayerNumber, setInitialPlayerNumber] = useState<number | null>(null);
+  const [showPalette, setShowPalette] = useState(false);
   const [theme, setTheme] = useState<ThemeId>("midnight");
+
+  // ⌘K / Ctrl+K opens the command palette from anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowPalette((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Restore saved theme on mount.
   useEffect(() => {
@@ -1526,7 +1579,8 @@ export default function WorldCupDashboard({
   return (
     <SquadsProvider value={squads}>
     <main className={`min-h-screen bg-aurora theme-${theme}`}>
-      <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null} />
+      <ScrollProgress />
+      <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null || showPalette} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
         <Hero data={data} theme={theme} onThemeChange={updateTheme} onMatchClick={handleMatchClick} />
         <StatStrip />
@@ -1561,6 +1615,28 @@ export default function WorldCupDashboard({
           initialPlayerNumber={initialPlayerNumber}
           onClose={closePlayerDashboard}
         />
+        {showPalette && (
+          <CommandPalette
+            onClose={() => setShowPalette(false)}
+            onTeam={(code) => { setInitialPlayerNumber(null); setSelectedTeam(code); }}
+            onPlayer={openTeamPlayer}
+          />
+        )}
+
+        {/* Floating search trigger (⌘K also works) */}
+        {!showPalette && selectedMatch === null && selectedTeam === null && (
+          <button
+            onClick={() => setShowPalette(true)}
+            aria-label="Search teams and players"
+            className="fixed bottom-24 lg:bottom-6 right-5 z-40 flex items-center gap-2 bg-[var(--bg-card)]/90 backdrop-blur-md border border-[var(--border-card)] hover:border-[var(--accent-500)]/50 rounded-full pl-3.5 pr-4 py-2.5 shadow-lg transition-all hover:-translate-y-0.5"
+          >
+            <Search className="w-4 h-4 text-[var(--accent-400)]" />
+            <span className="text-white text-sm font-semibold">Search</span>
+            <kbd className="hidden lg:block text-gray-500 text-[10px] font-bold border border-[var(--border-card)] rounded px-1.5 py-0.5">
+              ⌘K
+            </kbd>
+          </button>
+        )}
         {selectedMatch?.type === "upcoming" && (
           <UpcomingMatchModal
             label={selectedMatch.label}

@@ -550,6 +550,14 @@ export default function TeamStatsModal({
             background: `linear-gradient(to right, ${colorA}, ${colorA}33 50%, ${colorB}33 50%, ${colorB})`,
           }}
         />
+        {/* Ambient dual team-color glow behind the header */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-0 inset-x-0 h-48"
+          style={{
+            background: `radial-gradient(420px 170px at 12% 0%, ${colorA}2a, transparent 70%), radial-gradient(420px 170px at 88% 0%, ${colorB}2a, transparent 70%)`,
+          }}
+        />
         <button
           type="button"
           onClick={onClose}
