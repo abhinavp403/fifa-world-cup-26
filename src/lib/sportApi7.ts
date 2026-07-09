@@ -189,13 +189,18 @@ export type S7WorldCupEvent = {
 
 export async function getS7WorldCupEvents(): Promise<S7WorldCupEvent[]> {
   const base = `unique-tournament/${S7_WC_TOURNAMENT}/season/${S7_WC_SEASON_2026}/events`;
-  // `last` = played/in-progress (most recent first), `next` = upcoming. Paginate
-  // a few pages each way so all played fixtures are covered as the tournament
-  // grows (a single page caps at ~30 events).
+  // `last` = played/in-progress (most recent first), `next` = upcoming. A single
+  // page caps at ~30 events, and `last` returns most-recent-first — so as the
+  // tournament grows the EARLIEST matches scroll off the end. Paginate enough
+  // `last` pages to keep all 104 played fixtures covered right through the final
+  // (5 pages ≈ 150 events); otherwise the opening-round matches silently lose
+  // their stadium + analytics id once ~90 matches have been played.
   const pages = await Promise.all([
     s7<{ events: S7Event[] }>(`${base}/last/0`),
     s7<{ events: S7Event[] }>(`${base}/last/1`),
     s7<{ events: S7Event[] }>(`${base}/last/2`),
+    s7<{ events: S7Event[] }>(`${base}/last/3`),
+    s7<{ events: S7Event[] }>(`${base}/last/4`),
     s7<{ events: S7Event[] }>(`${base}/next/0`),
     s7<{ events: S7Event[] }>(`${base}/next/1`),
   ]);

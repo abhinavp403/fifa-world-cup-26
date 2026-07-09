@@ -1203,6 +1203,31 @@ function CityMatchesModal({
   );
 }
 
+// Knockout (bracket) matches reshaped as GroupMatch rows so the Host Cities
+// view lists every match played at a stadium — not just group-stage ones.
+// The worldcup API attaches the stadium to bracket matches as `venue`.
+function bracketMatchesAsGroupMatches(data: WorldCupPayload | null): GroupMatch[] {
+  if (!data) return [];
+  const all: Match[] = [...data.bracket.flatMap((r) => r.matches), data.thirdPlace];
+  return all
+    .filter((m) => m.venue && m.slot1.team && m.slot2.team)
+    .map((m) => ({
+      id:        parseInt(m.id.replace(/\D/g, ""), 10) || 0,
+      fixtureId: m.fixtureId ?? null,
+      utcDate:   m.date ?? "",
+      status:    m.status ?? "",
+      homeCode:  m.slot1.team!.code,
+      homeFlag:  m.slot1.team!.flag,
+      homeName:  m.slot1.team!.name,
+      awayCode:  m.slot2.team!.code,
+      awayFlag:  m.slot2.team!.flag,
+      awayName:  m.slot2.team!.name,
+      homeScore: m.homeScore ?? null,
+      awayScore: m.awayScore ?? null,
+      stadium:   m.venue ?? null,
+    }));
+}
+
 function HostCitiesSection({
   matches,
   onMatchClick,
@@ -1602,7 +1627,10 @@ export default function WorldCupDashboard({
         </section>
         <PlayersSection onPlayerClick={openTeamPlayer} />
         <HostCitiesSection
-          matches={(data?.groups ?? []).flatMap((g) => g.matches ?? [])}
+          matches={[
+            ...(data?.groups ?? []).flatMap((g) => g.matches ?? []),
+            ...bracketMatchesAsGroupMatches(data),
+          ]}
           onMatchClick={handleMatchClick}
         />
         <MatchAnalytics

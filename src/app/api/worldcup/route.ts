@@ -38,6 +38,9 @@ export async function GET() {
   // pair + day) so the analytics modal can load real per-match data. Two teams
   // meet at most once in the group stage, so the pair is a reliable key.
   type S7Pair = { id: number; day: string; stadium: string | null };
+  // Some Sofascore knockout events append a city suffix (e.g. "MetLife Stadium
+  // · New Jersey"); strip it so the name matches the HOST_CITIES stadium key.
+  const baseStadium = (s: string | null) => (s ? s.split("·")[0].trim() : null);
   const s7ByPair = new Map<string, S7Pair[]>();
   for (const ev of s7events) {
     const h = findLocalTeam({ id: 0, name: ev.home });
@@ -46,7 +49,7 @@ export async function GET() {
     const key = [h.code, a.code].sort().join("-");
     const day = new Date(ev.startTimestamp * 1000).toISOString().slice(0, 10);
     const list = s7ByPair.get(key) ?? [];
-    list.push({ id: ev.id, day, stadium: ev.stadium });
+    list.push({ id: ev.id, day, stadium: baseStadium(ev.stadium) });
     s7ByPair.set(key, list);
   }
   const lookupEvent = (homeCode: string, awayCode: string, utcDate: string): S7Pair | null => {
