@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 
 import { getMatches } from "@/lib/footballData";
-import { findLocalTeam, resolveBracket, resolveChampion, resolveGroups } from "@/lib/resolver";
+import { findLocalTeam, resolveBracket, resolveChampion, resolveGroups, resolveRunnerUp, resolveThirdPlace } from "@/lib/resolver";
 import type { Match } from "@/lib/bracket";
 import { getS7WorldCupEvents } from "@/lib/sportApi7";
 import { aggregateWorldCupTeamStats } from "@/lib/teamFixtureStats";
@@ -33,6 +33,8 @@ export async function GET() {
   const groups = resolveGroups(matches);
   const { rounds, thirdPlace } = resolveBracket(matches);
   const champion = resolveChampion(matches);
+  const runnerUp = resolveRunnerUp(matches);
+  const thirdPlaceWinner = resolveThirdPlace(matches);
 
   // Attach a Sofascore event id to each match (keyed by the unordered team-code
   // pair + day) so the analytics modal can load real per-match data. Two teams
@@ -91,6 +93,8 @@ export async function GET() {
     bracket: rounds,
     thirdPlace,
     champion,
+    runnerUp,
+    thirdPlaceWinner,
     teamFixtureStats,
   });
 }

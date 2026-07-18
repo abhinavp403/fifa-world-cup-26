@@ -963,11 +963,6 @@ function GroupsSection({
     return m;
   }, [resolved]);
 
-  const hasLiveStandings = useMemo(
-    () => (resolved ?? []).some((g) => g.rows && g.rows.length > 0),
-    [resolved],
-  );
-
   const filteredGroups = useMemo(() => {
     const q = normalizeText(search.trim());
     if (!q && confFilter === "ALL") return GROUPS;
@@ -1008,12 +1003,6 @@ function GroupsSection({
               All 48 nations · 12 groups of 4 · top two + best eight thirds
               advance to the Round of 32
             </p>
-            {hasLiveStandings && (
-              <span className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-bold tracking-widest text-emerald-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                LIVE STANDINGS
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1429,6 +1418,8 @@ type WorldCupPayload = {
   bracket: Round[];
   thirdPlace: Match;
   champion: Team | null;
+  runnerUp: Team | null;
+  thirdPlaceWinner: Team | null;
   teamFixtureStats: Record<string, TeamFixtureAggregate>;
 };
 
@@ -1581,10 +1572,6 @@ export default function WorldCupDashboard({
     };
   }, []);
 
-  const hasLiveBracket = !!data?.bracket?.some((r) =>
-    r.matches.some((m) => m.slot1.team || m.slot2.team),
-  );
-
   const handleMatchClick = (fixtureId: number | null, label: string, date: string) => {
     if (fixtureId != null) {
       // fixtureId is a Sofascore event id (attached in /api/worldcup).
@@ -1617,7 +1604,9 @@ export default function WorldCupDashboard({
         <KnockoutBracket
           rounds={data?.bracket}
           thirdPlace={data?.thirdPlace}
-          live={hasLiveBracket}
+          champion={data?.champion ?? null}
+          runnerUp={data?.runnerUp ?? null}
+          thirdPlaceWinner={data?.thirdPlaceWinner ?? null}
           onMatchClick={handleMatchClick}
         />
         <section className="px-4 pt-0 pb-4 scroll-mt-12">

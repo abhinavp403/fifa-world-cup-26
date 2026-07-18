@@ -315,3 +315,31 @@ export function resolveChampion(
   if (final.score.winner === "AWAY_TEAM") return findLocalTeam(final.awayTeam);
   return null;
 }
+
+// The losing finalist. Null until the final has been played and decided.
+export function resolveRunnerUp(matches: FDMatch[] | null): Team | null {
+  if (!matches || matches.length === 0) return null;
+  const finals = matches.filter((m) => STAGE_TO_ROUND_SHORT[m.stage] === "FINAL");
+  if (finals.length === 0) return null;
+  finals.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
+  const final = finals[0];
+  if (final.status !== "FINISHED") return null;
+  // The runner-up is the finalist that didn't win (winner via football-data's
+  // score.winner, which accounts for extra time / penalties).
+  if (final.score.winner === "HOME_TEAM") return findLocalTeam(final.awayTeam);
+  if (final.score.winner === "AWAY_TEAM") return findLocalTeam(final.homeTeam);
+  return null;
+}
+
+// Winner of the third-place play-off. Null until it's been played and decided.
+export function resolveThirdPlace(matches: FDMatch[] | null): Team | null {
+  if (!matches || matches.length === 0) return null;
+  const games = matches.filter((m) => STAGE_TO_ROUND_SHORT[m.stage] === "THIRD");
+  if (games.length === 0) return null;
+  games.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
+  const g = games[0];
+  if (g.status !== "FINISHED") return null;
+  if (g.score.winner === "HOME_TEAM") return findLocalTeam(g.homeTeam);
+  if (g.score.winner === "AWAY_TEAM") return findLocalTeam(g.awayTeam);
+  return null;
+}

@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Swords } from "lucide-react";
+import { Swords, Trophy, Medal, Award } from "lucide-react";
 
 import { BRACKET, THIRD_PLACE_MATCH, type Match, type Round, type Slot } from "@/lib/bracket";
+import { TEAM_COLORS, type Team } from "@/lib/worldcup";
 import Flag from "@/components/Flag";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -175,48 +176,31 @@ function RoundColumn({
 export default function KnockoutBracket({
   rounds = BRACKET,
   thirdPlace = THIRD_PLACE_MATCH,
-  live = false,
+  champion = null,
+  runnerUp = null,
+  thirdPlaceWinner = null,
   onMatchClick,
 }: {
   rounds?: Round[];
   thirdPlace?: Match;
-  live?: boolean;
+  champion?: Team | null;
+  runnerUp?: Team | null;
+  thirdPlaceWinner?: Team | null;
   onMatchClick?: (fixtureId: number | null, label: string, date: string) => void;
 } = {}) {
   return (
     <section id="bracket" className="px-4 py-10 scroll-mt-12">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-          <div className="flex items-center gap-2">
-            <Swords className="w-5 h-5 text-[var(--accent-400)]" />
-            <h2 className="text-white font-bold text-2xl">Knockout Bracket</h2>
-          </div>
-          <span
-            className={`flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-bold tracking-widest border ${
-              live
-                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                : "bg-gray-500/10 text-gray-400 border-[var(--border-card)]"
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                live ? "bg-emerald-400 animate-pulse" : "bg-gray-500"
-              }`}
-            />
-            {live ? "LIVE DATA" : "AWAITING DRAW"}
-          </span>
+        <div className="flex items-center gap-2 mb-1">
+          <Swords className="w-5 h-5 text-[var(--accent-400)]" />
+          <h2 className="text-white font-bold text-2xl">Knockout Bracket</h2>
         </div>
         <p className="text-gray-500 text-sm mb-6">
-          Proxy slots based on group position · 32 teams · slots populate
-          automatically as results come in
+          32 teams · single-elimination to the final
         </p>
 
         {/* Legend */}
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-[11px] mb-5">
-          <Legend
-            swatch={<span className="w-3 h-3 rounded-full border border-dashed border-[#214066]" />}
-            label="Pending — proxy slot"
-          />
           <Legend
             swatch={<span className="w-3 h-3 rounded-sm bg-amber-400/60" />}
             label="Final"
@@ -253,8 +237,93 @@ export default function KnockoutBracket({
             Swipe horizontally to see all rounds →
           </p>
         </div>
+
+        {/* Podium — populates as the final and third-place play-off are decided */}
+        <div className="grid sm:grid-cols-3 gap-4 mt-6">
+          <PodiumBlock place="winner"    team={champion} />
+          <PodiumBlock place="runnerUp"  team={runnerUp} />
+          <PodiumBlock place="third"     team={thirdPlaceWinner} />
+        </div>
       </div>
     </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Podium — Winner / Runner-up / Third place
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PODIUM_META = {
+  winner: {
+    label: "Winner",
+    Icon: Trophy,
+    accent: "#fbbf24", // amber-400
+    ring: "border-amber-400/45",
+    glow: "from-amber-400/15",
+    text: "text-amber-200",
+  },
+  runnerUp: {
+    label: "Runner-up",
+    Icon: Medal,
+    accent: "#cbd5e1", // slate-300 (silver)
+    ring: "border-slate-300/35",
+    glow: "from-slate-300/10",
+    text: "text-slate-200",
+  },
+  third: {
+    label: "Third place",
+    Icon: Award,
+    accent: "#f59e0b", // amber-500 (bronze-ish)
+    ring: "border-orange-400/35",
+    glow: "from-orange-400/10",
+    text: "text-orange-200",
+  },
+} as const;
+
+function PodiumBlock({
+  place,
+  team,
+}: {
+  place: keyof typeof PODIUM_META;
+  team: Team | null;
+}) {
+  const m = PODIUM_META[place];
+  const teamColor = team ? TEAM_COLORS[team.code] ?? m.accent : m.accent;
+
+  return (
+    <div
+      className={`relative overflow-hidden bg-gradient-to-br ${m.glow} to-transparent bg-[var(--bg-card)] border ${m.ring} rounded-2xl p-4 flex items-center gap-4`}
+    >
+      {/* medal icon badge */}
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border"
+        style={{ backgroundColor: `${m.accent}1f`, borderColor: `${m.accent}55` }}
+      >
+        <m.Icon className="w-6 h-6" style={{ color: m.accent }} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className={`text-[10px] font-black tracking-widest uppercase ${m.text}`}>
+          {m.label}
+        </p>
+        {team ? (
+          <div className="flex items-center gap-2 mt-1">
+            <Flag code={team.code} size="md" />
+            <span className="text-white font-bold text-base truncate">{team.name}</span>
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm font-semibold mt-1">To be decided</p>
+        )}
+      </div>
+
+      {/* team-color accent bar */}
+      {team && (
+        <span
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{ backgroundColor: teamColor }}
+        />
+      )}
+    </div>
   );
 }
 
