@@ -382,6 +382,10 @@ function ThemePicker({
 // Hero
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Hardcoded tournament winner shown in the hero card (Spain, World Cup 2026).
+const HERO_CHAMPION: Team | null =
+  GROUPS.flatMap((g) => g.teams).find((t) => t.code === "ESP") ?? null;
+
 function Hero({
   data,
   theme,
@@ -470,8 +474,8 @@ function Hero({
 
           <div className="flex flex-col gap-3">
             <ThemePicker theme={theme} onChange={onThemeChange} />
-            {phase === "post" && data?.champion ? (
-              <ChampionCard champion={data.champion} />
+            {HERO_CHAMPION ? (
+              <ChampionCard champion={HERO_CHAMPION} />
             ) : phase === "during" ? (
               <TodayMatchesCard data={data} onMatchClick={onMatchClick} />
             ) : (
