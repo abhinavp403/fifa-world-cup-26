@@ -285,12 +285,17 @@ export function resolveBracket(matches: FDMatch[] | null): {
   });
 
   const thirdLive = (buckets["THIRD"] ?? [])[0];
-  const thirdPlace = thirdLive
+  const thirdPlace: Match = thirdLive
     ? {
         ...THIRD_PLACE_MATCH,
         date: thirdLive.utcDate,
         slot1: slotFromFD(thirdLive.homeTeam, THIRD_PLACE_MATCH.slot1),
         slot2: slotFromFD(thirdLive.awayTeam, THIRD_PLACE_MATCH.slot2),
+        // Carry the score + status through (like the rounds above) so the
+        // worldcup route can attach a Sofascore fixtureId for its analytics.
+        homeScore: fdScore(thirdLive.score).home,
+        awayScore: fdScore(thirdLive.score).away,
+        status: thirdLive.status,
       }
     : THIRD_PLACE_MATCH;
 
