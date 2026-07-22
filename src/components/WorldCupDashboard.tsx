@@ -36,6 +36,7 @@ import MatchAnalytics from "@/components/MatchAnalytics";
 import PlayerDashboard from "@/components/PlayerDashboard";
 import PlayersSection from "@/components/PlayersSection";
 import TeamComparison from "@/components/TeamComparison";
+import TournamentWrapped from "@/components/TournamentWrapped";
 import CommandPalette from "@/components/CommandPalette";
 import type { Squad } from "@/lib/squads";
 import { SquadsProvider, useSquads } from "@/lib/squadsContext";
@@ -391,11 +392,13 @@ function Hero({
   theme,
   onThemeChange,
   onMatchClick,
+  onOpenWrapped,
 }: {
   data:          WorldCupPayload | null;
   theme:         ThemeId;
   onThemeChange: (t: ThemeId) => void;
   onMatchClick:  (fixtureId: number | null, label: string, date: string) => void;
+  onOpenWrapped: () => void;
 }) {
   const c = useCountdown(TOURNAMENT.startDate);
   const [now, setNow] = useState<number | null>(null);
@@ -445,6 +448,13 @@ function Hero({
                   priority
                   className="float-gently w-14 sm:w-16 lg:w-20 h-auto drop-shadow-[0_3px_10px_rgba(0,0,0,0.3)]"
                 />
+                <button
+                  onClick={onOpenWrapped}
+                  className="group flex items-center gap-1.5 self-center bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 hover:from-indigo-400 hover:via-purple-400 hover:to-fuchsia-400 text-white text-xs sm:text-sm font-black tracking-wide rounded-full px-3.5 sm:px-4 py-2 shadow-lg shadow-purple-500/30 transition-all hover:scale-105"
+                >
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:rotate-12 transition-transform" />
+                  Wrapped
+                </button>
               </span>
             </h1>
 
@@ -1509,11 +1519,14 @@ export default function WorldCupDashboard({
   const [selectedMatch, setSelectedMatch] = useState<SelectedMatch>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [initialPlayerNumber, setInitialPlayerNumber] = useState<number | null>(null);
+  const [showWrapped, setShowWrapped] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [theme, setTheme] = useState<ThemeId>("midnight");
 
-  // ⌘K / Ctrl+K opens the command palette from anywhere.
+  // ⌘K / Ctrl+K opens the command palette from anywhere — except over the
+  // Wrapped story, whose own arrow/Escape handlers would fight the palette.
   useEffect(() => {
+    if (showWrapped) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -1522,7 +1535,7 @@ export default function WorldCupDashboard({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [showWrapped]);
 
   // Restore saved theme on mount.
   useEffect(() => {
@@ -1596,9 +1609,15 @@ export default function WorldCupDashboard({
     <SquadsProvider value={squads}>
     <main className={`min-h-screen bg-aurora theme-${theme}`}>
       <ScrollProgress />
-      <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null || showPalette} />
+      <SiteNav isModalOpen={selectedMatch !== null || selectedTeam !== null || showWrapped || showPalette} />
       <div className="relative z-10 lg:pl-56 pb-24 lg:pb-0">
-        <Hero data={data} theme={theme} onThemeChange={updateTheme} onMatchClick={handleMatchClick} />
+        <Hero
+          data={data}
+          theme={theme}
+          onThemeChange={updateTheme}
+          onMatchClick={handleMatchClick}
+          onOpenWrapped={() => setShowWrapped(true)}
+        />
         <StatStrip />
         <GroupsSection
           resolved={data?.groups}
@@ -1636,16 +1655,20 @@ export default function WorldCupDashboard({
           initialPlayerNumber={initialPlayerNumber}
           onClose={closePlayerDashboard}
         />
+        {showWrapped && (
+          <TournamentWrapped data={data} onClose={() => setShowWrapped(false)} />
+        )}
         {showPalette && (
           <CommandPalette
             onClose={() => setShowPalette(false)}
             onTeam={(code) => { setInitialPlayerNumber(null); setSelectedTeam(code); }}
             onPlayer={openTeamPlayer}
+            onWrapped={() => setShowWrapped(true)}
           />
         )}
 
         {/* Floating search trigger (⌘K also works) */}
-        {!showPalette && selectedMatch === null && selectedTeam === null && (
+        {!showPalette && !showWrapped && selectedMatch === null && selectedTeam === null && (
           <button
             onClick={() => setShowPalette(true)}
             aria-label="Search teams and players"

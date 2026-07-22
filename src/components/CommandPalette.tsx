@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Users, ArrowRight, CornerDownLeft } from "lucide-react";
+import { Search, Sparkles, Users, ArrowRight, CornerDownLeft } from "lucide-react";
 
 import { GROUPS } from "@/lib/worldcup";
 import { useSquads } from "@/lib/squadsContext";
@@ -38,10 +38,12 @@ export default function CommandPalette({
   onClose,
   onTeam,
   onPlayer,
+  onWrapped,
 }: {
   onClose: () => void;
   onTeam: (code: string) => void;
   onPlayer: (code: string, number: number) => void;
+  onWrapped: () => void;
 }) {
   const squads = useSquads();
   const [query, setQuery] = useState("");
@@ -55,6 +57,7 @@ export default function CommandPalette({
 
     // Quick actions — always available, filtered by query.
     const actions: { id: string; label: string; hint?: string; run: () => void }[] = [
+      { id: "wrapped", label: "Open Tournament Wrapped", hint: "story recap", run: onWrapped },
       { id: "groups", label: "Jump to Groups & Standings", run: () => jumpTo("groups") },
       { id: "bracket", label: "Jump to Knockout Bracket", run: () => jumpTo("bracket") },
       { id: "compare", label: "Jump to Team Comparison", run: () => jumpTo("analytics") },
@@ -101,7 +104,7 @@ export default function CommandPalette({
     }
 
     return out;
-  }, [query, squads, onTeam, onPlayer]);
+  }, [query, squads, onTeam, onPlayer, onWrapped]);
 
   // Cap what we render; keep the cursor in range.
   const visible = useMemo(() => {
@@ -215,7 +218,11 @@ export default function CommandPalette({
               >
                 {item.kind === "action" && (
                   <span className="w-6 h-6 rounded-md bg-[var(--accent-500)]/15 flex items-center justify-center text-[var(--accent-400)] flex-shrink-0">
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    {item.id === "wrapped" ? (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    ) : (
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    )}
                   </span>
                 )}
                 {(item.kind === "team" || item.kind === "player") && (
