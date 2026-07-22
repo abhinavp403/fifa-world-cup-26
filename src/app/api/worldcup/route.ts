@@ -4,6 +4,7 @@
 // football-data.org has no matches for the season yet.
 
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 import { getMatches } from "@/lib/footballData";
 import { findLocalTeam, resolveBracket, resolveChampion, resolveGroups, resolveRunnerUp, resolveThirdPlace } from "@/lib/resolver";
@@ -15,6 +16,38 @@ import { getTeamFixtureStats } from "@/lib/squadsData";
 // Re-cache every 5 minutes server-side; the underlying fetches also use
 // `next: { revalidate: 300 }`.
 export const revalidate = 300;
+
+// ── Durable snapshot of the whole payload ────────────────────────────────────
+// While the live feeds are healthy we refresh a single-row snapshot; once the
+// APIs are cancelled we serve that snapshot so results/bracket/host-cities and
+// the match-analytics fixtureId links all keep working.
+type WorldCupPayload = Record<string, unknown>;
+
+function serviceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function loadWorldCupSnapshot(): Promise<WorldCupPayload | null> {
+  const sb = serviceClient();
+  if (!sb) return null;
+  const { data } = await sb
+    .from("worldcup_snapshot")
+    .select("payload")
+    .eq("id", 1)
+    .maybeSingle();
+  return (data?.payload as WorldCupPayload) ?? null;
+}
+
+async function saveWorldCupSnapshot(payload: WorldCupPayload) {
+  const sb = serviceClient();
+  if (!sb) return;
+  await sb
+    .from("worldcup_snapshot")
+    .upsert({ id: 1, payload, synced_at: new Date().toISOString() }, { onConflict: "id" });
+}
 
 export async function GET() {
   // Prefer the DB-cached team stats (written by the sync cron) — instant, no
@@ -86,7 +119,7 @@ export async function GET() {
 
   const live = matches != null;
 
-  return NextResponse.json({
+  const payload: WorldCupPayload = {
     live,
     updatedAt: new Date().toISOString(),
     groups,
@@ -96,5 +129,22 @@ export async function GET() {
     runnerUp,
     thirdPlaceWinner,
     teamFixtureStats,
-  });
+  };
+
+  // "Healthy" = both live feeds returned data, so fixtureIds + stadiums are
+  // attached and standings/bracket are real. Only then do we overwrite the
+  // durable snapshot (never clobber a good freeze with a degraded build).
+  const healthy = matches != null && s7events.length > 0;
+  if (healthy) {
+    await saveWorldCupSnapshot(payload);
+    return NextResponse.json(payload);
+  }
+
+  // Live feeds degraded/cancelled — serve the last healthy snapshot if we have
+  // one, so the whole site keeps working with zero API calls.
+  const snapshot = await loadWorldCupSnapshot();
+  if (snapshot) {
+    return NextResponse.json({ ...snapshot, live: false, servedFromSnapshot: true });
+  }
+  return NextResponse.json(payload);
 }

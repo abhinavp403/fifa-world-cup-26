@@ -92,6 +92,21 @@ create table if not exists public.match_analytics (
 alter table public.match_analytics enable row level security;
 -- No public read policy: only the match route (service_role key) touches this.
 
+-- Durable snapshot of the whole /api/worldcup payload (group standings, resolved
+-- bracket, champion, attached fixtureIds + stadiums, team stats). A single row.
+-- The worldcup route refreshes it on every healthy request and serves it when
+-- the live feeds (football-data.org / Sofascore) are gone, so results, the
+-- bracket, host-city fixtures and match-analytics links all survive the APIs
+-- being cancelled. Written with the service key.
+create table if not exists public.worldcup_snapshot (
+  id         int primary key default 1,   -- always 1 (single row)
+  payload    jsonb not null,
+  synced_at  timestamptz not null default now()
+);
+
+alter table public.worldcup_snapshot enable row level security;
+-- No public read policy: only the worldcup route (service_role key) touches this.
+
 -- keep updated_at fresh on any write
 create or replace function public.touch_updated_at() returns trigger as $$
 begin
