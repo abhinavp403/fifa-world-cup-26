@@ -338,7 +338,7 @@ function StatBlock({
       </p>
       <p
         className="text-2xl font-black tabular-nums leading-none"
-        style={{ color: accent ?? "#e2e8f0" }}
+        style={{ color: accent ?? "var(--stat-value)" }}
       >
         {value}
       </p>

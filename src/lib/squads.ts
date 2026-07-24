@@ -1353,7 +1353,7 @@ export const SQUADS: Record<string, Squad> = {
       { name: "Fahad Talib",        number: 1,  position: "GK",  club: "Al-Shorta",         age: 31, photo: s(884092) },
       { name: "Ahmed Basil",        number: 22, position: "GK",  club: "Al-Zawraa",         age: 29, photo: s(888896) },
       { name: "Hussein Ali",        number: 3,  position: "DEF", club: "Al-Shorta",         age: 24, photo: s(962056) },
-      { name: "Manaf Younis",       number: 6,  position: "DEF", club: "Al-Quwa Al-Jawiya", age: 29, photo: s(1176558) },
+      { name: "Manaf Younis",       number: 6,  position: "DEF", club: "Al-Quwa Al-Jawiya", age: 29, photo: s(1163991) },
       { name: "Zaid Tahseen",       number: 4,  position: "DEF", club: "Al-Shorta",         age: 25, photo: s(1150051) },
       { name: "Rebin Sulaka",       number: 2,  position: "DEF", club: "Al-Zawraa",         age: 34, photo: s(362504) },
       { name: "Akam Hashem",        number: 5,  position: "DEF", club: "Erbil",             age: 27, photo: s(1631451) },

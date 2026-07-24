@@ -161,6 +161,16 @@ body {
 /* ── Stat-card numbers — themed accent (light override added with the light theme) ── */
 .stat-num { color: var(--accent-400); }
 
+/* Default stat-block value color — light gray on dark themes, dark slate on
+   light so the numbers stay legible on a white card (set inline in JSX, so it
+   has to come from a variable rather than a Tailwind class). */
+:root,
+.theme-midnight,
+.theme-pitch,
+.theme-ember,
+.theme-royal { --stat-value: #e2e8f0; }
+.theme-light { --stat-value: #1e293b; }
+
 /* Canvas chart palette — read via getComputedStyle in the draw functions
    so canvas (which can't inherit CSS classes) still picks up the theme. */
 :root,
