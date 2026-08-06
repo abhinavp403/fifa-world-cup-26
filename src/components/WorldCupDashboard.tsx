@@ -1437,15 +1437,18 @@ type WorldCupPayload = {
   teamFixtureStats: Record<string, TeamFixtureAggregate>;
 };
 
-// A team's real Won/Draw/Lost, tallied from every finished match it played
-// (group stage + knockouts). Shootout draws count as draws (regulation score).
+// A team's real Won/Draw/Lost and goals scored, tallied from every finished
+// match it played (group stage + knockouts). Shootout draws count as draws
+// (regulation score); goalsFor is the match-based total (so opponent own goals
+// count), matching the Team Comparison view — unlike a sum of player goals.
 function computeTeamRecord(
   data: WorldCupPayload | null,
   code: string | null,
-): { won: number; drawn: number; lost: number } | null {
+): { won: number; drawn: number; lost: number; goalsFor: number } | null {
   if (!data || !code) return null;
-  let won = 0, drawn = 0, lost = 0;
+  let won = 0, drawn = 0, lost = 0, goalsFor = 0;
   const tally = (gf: number, ga: number) => {
+    goalsFor += gf;
     if (gf > ga) won++;
     else if (gf < ga) lost++;
     else drawn++;
@@ -1463,7 +1466,7 @@ function computeTeamRecord(
     if (m.slot1.team?.code === code) tally(m.homeScore, m.awayScore);
     else if (m.slot2.team?.code === code) tally(m.awayScore, m.homeScore);
   }
-  return { won, drawn, lost };
+  return { won, drawn, lost, goalsFor };
 }
 
 // Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.

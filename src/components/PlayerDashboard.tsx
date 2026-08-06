@@ -639,9 +639,10 @@ export default function PlayerDashboard({
 }: {
   teamCode:             string | null;
   initialPlayerNumber?: number | null;
-  // Team W/D/L, tallied from real match results by the parent (the per-player
-  // GK record only covered the matches that one keeper played).
-  record?:              { won: number; drawn: number; lost: number } | null;
+  // Team W/D/L + goals scored, tallied from real match results by the parent
+  // (the per-player GK record only covered one keeper's matches, and a sum of
+  // player goals misses opponent own goals).
+  record?:              { won: number; drawn: number; lost: number; goalsFor: number } | null;
   onClose:              () => void;
 }) {
   const squads = useSquads();
@@ -691,9 +692,9 @@ export default function PlayerDashboard({
     if (!squad) return null;
     const p      = squad.players;
     const avgAge = (p.reduce((s, pl) => s + pl.age, 0) / p.length).toFixed(1);
-    const goals        = p.reduce((s, pl) => s + (pl.stats?.goals        ?? 0), 0);
-    // W/D/L comes from real match results (passed in by the parent), not a
-    // single keeper's per-appearance record.
+    // Team goals scored + W/D/L come from real match results (passed in by the
+    // parent). Fall back to summed player goals only before results exist.
+    const goals        = record?.goalsFor ?? p.reduce((s, pl) => s + (pl.stats?.goals ?? 0), 0);
     const matchesWon   = record?.won   ?? 0;
     const matchesDrawn = record?.drawn ?? 0;
     const matchesLost  = record?.lost  ?? 0;
