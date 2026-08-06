@@ -87,7 +87,11 @@ export type Squad = {
 };
 
 const p = (url: string) => `https://r2.thesportsdb.com/images/media/player/cutout/${url}`;
-const s = (id: number) => `/api/player-photo/${id}`;
+// Player photos are stored statically under public/player-photos/ (downloaded
+// once from Sofascore) so they survive the RapidAPI subscription lapsing —
+// served straight from Vercel's CDN with no API key. The bytes are WebP but
+// named .png (as the old proxy served them); browsers sniff and render fine.
+const s = (id: number) => `/player-photos/${id}.png`;
 
 export const SQUADS: Record<string, Squad> = {
 
