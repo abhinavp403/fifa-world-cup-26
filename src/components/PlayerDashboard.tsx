@@ -634,10 +634,14 @@ function SummaryCard({
 export default function PlayerDashboard({
   teamCode,
   initialPlayerNumber,
+  record,
   onClose,
 }: {
   teamCode:             string | null;
   initialPlayerNumber?: number | null;
+  // Team W/D/L, tallied from real match results by the parent (the per-player
+  // GK record only covered the matches that one keeper played).
+  record?:              { won: number; drawn: number; lost: number } | null;
   onClose:              () => void;
 }) {
   const squads = useSquads();
@@ -688,14 +692,13 @@ export default function PlayerDashboard({
     const p      = squad.players;
     const avgAge = (p.reduce((s, pl) => s + pl.age, 0) / p.length).toFixed(1);
     const goals        = p.reduce((s, pl) => s + (pl.stats?.goals        ?? 0), 0);
-    // W/D/L are team-level — use the GK's record as the team record (each GK
-    // has the same match results as the team). Fall back to 0 pre-tournament.
-    const gk = p.find((pl) => pl.position === "GK" && pl.stats);
-    const matchesWon   = gk?.stats?.matchesWon   ?? 0;
-    const matchesDrawn = gk?.stats?.matchesDrawn ?? 0;
-    const matchesLost  = gk?.stats?.matchesLost  ?? 0;
+    // W/D/L comes from real match results (passed in by the parent), not a
+    // single keeper's per-appearance record.
+    const matchesWon   = record?.won   ?? 0;
+    const matchesDrawn = record?.drawn ?? 0;
+    const matchesLost  = record?.lost  ?? 0;
     return { avgAge, goals, matchesWon, matchesDrawn, matchesLost };
-  }, [squad]);
+  }, [squad, record]);
 
   if (teamCode == null) return null;
 

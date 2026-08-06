@@ -1437,6 +1437,35 @@ type WorldCupPayload = {
   teamFixtureStats: Record<string, TeamFixtureAggregate>;
 };
 
+// A team's real Won/Draw/Lost, tallied from every finished match it played
+// (group stage + knockouts). Shootout draws count as draws (regulation score).
+function computeTeamRecord(
+  data: WorldCupPayload | null,
+  code: string | null,
+): { won: number; drawn: number; lost: number } | null {
+  if (!data || !code) return null;
+  let won = 0, drawn = 0, lost = 0;
+  const tally = (gf: number, ga: number) => {
+    if (gf > ga) won++;
+    else if (gf < ga) lost++;
+    else drawn++;
+  };
+  for (const g of data.groups) {
+    for (const m of g.matches ?? []) {
+      if (m.status !== "FINISHED" || m.homeScore == null || m.awayScore == null) continue;
+      if (m.homeCode === code) tally(m.homeScore, m.awayScore);
+      else if (m.awayCode === code) tally(m.awayScore, m.homeScore);
+    }
+  }
+  const knockouts: Match[] = [...data.bracket.flatMap((r) => r.matches), data.thirdPlace];
+  for (const m of knockouts) {
+    if (m.status !== "FINISHED" || m.homeScore == null || m.awayScore == null) continue;
+    if (m.slot1.team?.code === code) tally(m.homeScore, m.awayScore);
+    else if (m.slot2.team?.code === code) tally(m.awayScore, m.homeScore);
+  }
+  return { won, drawn, lost };
+}
+
 // Simple "coming soon" modal for matches that don't have an api-football fixture ID yet.
 function UpcomingMatchModal({
   label,
@@ -1653,6 +1682,7 @@ export default function WorldCupDashboard({
         <PlayerDashboard
           teamCode={selectedTeam}
           initialPlayerNumber={initialPlayerNumber}
+          record={computeTeamRecord(data, selectedTeam)}
           onClose={closePlayerDashboard}
         />
         {showWrapped && (
